@@ -4,8 +4,8 @@
 Simple Robin Interpreter
 """
 import builtins
-import symbols
-from pparser import *
+from robin import symbols
+from robin.parser import *
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
@@ -104,12 +104,15 @@ class Interpreter(Visitor):
     def __init__(self, tree):
         # symbol table
         self.tree = tree
-        # global memory
-        self.memory = Memory(init=True)
+        # global scope
         self.scope = ScopeDict(init=True)
+        self._global = self.scope
 
     def intreperter(self):
         self.visit(self.tree)
+
+    def get_global(self):
+        return self._global
 
     def visit_program(self, node: ast.Program):
         self.visit(node.block)
@@ -190,7 +193,7 @@ class Interpreter(Visitor):
     def visit_bool(self, node: ast.Bool):
         return node.value
 
-    def visit_regularstr(self, node:ast.RegularStr):
+    def visit_regularstr(self, node: ast.RegularStr):
         return node.value
 
     def visit_emptyop(self, node: ast.EmptyOp):

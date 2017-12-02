@@ -5,10 +5,10 @@ __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
 
 
-def main():
+def _main():
     pass
 
 
 if __name__ == '__main__':
-    main()
+    _main()
 

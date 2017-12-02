@@ -7,9 +7,9 @@ __email__ = 'aollio@outlook.com'
 from functools import partial
 import logging
 
-from tokens import Token
-import tokens as t
-from uutil import log_def
+from robin.tokens import Token
+from robin import tokens as t
+from robin.util import log_def
 
 log = logging.getLogger('Lexer')
 log_def = partial(log_def, log=log)
@@ -24,10 +24,16 @@ log_def = partial(log_def, log=log)
 
 class Lexer:
     def __init__(self, text: str):
+        self.tokens = []
+
         self.text = text
+        if len(text) == 0:
+            self.current_char = None
+            self.tokens.append(Token(type=t.EOF))
+            return
+
         self.pos = 0
         self.current_char = self.text[self.pos]
-        self.tokens = []
         while self.current_char is not None:
             self._parse_token()
         self.tokens.append(Token(type=t.EOF))
@@ -47,7 +53,9 @@ class Lexer:
     def id(self):
         """从输入中获取一个标识符 Identity"""
         chars = ''
-        while self.current_char.isalnum() or self.current_char == '_':
+        while self.current_char is not None and \
+                self.current_char.isalnum() \
+                or self.current_char == '_':
             chars += self.current_char
             self.next_pos()
         token = t.PRESERVE_DICT.get(chars, Token(type=t.ID, value=chars))

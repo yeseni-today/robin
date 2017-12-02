@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
-from functools import partial
 from logging import getLogger
-from lexer import *
-from uutil import log_def
-import ast
+from robin.lexer import *
+from robin.util import log_def
+from robin import ast
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
@@ -21,8 +20,8 @@ log_def = partial(log_def, log=log)
 
 class Parser:
     def __init__(self, lexer: Lexer):
-        self.indent = 0
         self.lexer = lexer
+        self.indent = 0
         self.current_token = lexer.read()
 
     def error(self, need=None):
