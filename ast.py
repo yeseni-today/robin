@@ -25,6 +25,12 @@ class Bool(AST):
         self.value = token.value
 
 
+class RegularStr(AST):
+    def __init__(self, token):
+        self.token = token,
+        self.value = token.value
+
+
 class Op(AST):
     def __init__(self, left, op, right):
         self.right = right

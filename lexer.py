@@ -22,8 +22,6 @@ log_def = partial(log_def, log=log)
 ###############################################################################
 
 
-
-
 class Lexer:
     def __init__(self, text: str):
         self.text = text
@@ -86,6 +84,25 @@ class Lexer:
         else:
             return Token(type=t.CONST_INTEGER, value=int(chars))
 
+    @log_def
+    def regular_str(self):
+        """Parsing a regular str from input stream."""
+        chars = ''
+        # begin char is \' or \"
+        begin = self.current_char
+        self.next_pos()
+        while self.current_char is not None and self.text[self.pos] != begin:
+            chars += self.current_char
+            if self.current_char == '\\':
+                self.next_pos()
+                chars += self.current_char
+            self.next_pos()
+        # skip the ending character
+        self.next_pos()
+        # escape processing
+        chars = chars.encode().decode('unicode-escape')
+        return Token(t.CONST_REGULAR_STR, chars)
+
     def error(self):
         raise Exception("Invalid Character '%s'" % self.text[self.pos])
 
@@ -122,13 +139,20 @@ class Lexer:
                 self.tokens.append(self.number())
                 return
 
-            # new line
+            # regular string. like 'something' or "something"
+            if current_char in "\'\"":
+                self.tokens.append(self.regular_str())
+                return
+
+                # new line
             if current_char == '\n':
                 self.newline_and_indent()
                 return
 
             # double mark， like '==', '<='...
-            if self._peek_char() is not None and self.current_char is not None and self.current_char + self._peek_char() in t.DOUBLE_MARK_DICT:
+            if self._peek_char() is not None \
+                    and self.current_char is not None \
+                    and self.current_char + self._peek_char() in t.DOUBLE_MARK_DICT:
                 mark = self.current_char + self._peek_char()
                 self.next_pos()
                 self.next_pos()

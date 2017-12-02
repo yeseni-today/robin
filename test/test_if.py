@@ -7,11 +7,12 @@ result = False
 
 
 def hello():
-    print(12)
+    print('Hello World')
 
 
 if a < b:
     if a > c:
         result = True
 
-hello()
+if result:
+    hello()

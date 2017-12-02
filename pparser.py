@@ -312,6 +312,7 @@ class Parser:
                      -> LPAREN <expr> RPAREN
                      -> <function_call>
                      -> CONST_BOOL
+                     -> CONST_REGULAR_STR
         :return:
         """
 
@@ -343,6 +344,10 @@ class Parser:
             booltoken = self.current_token
             self.eat(t.CONST_BOOL)
             return ast.Bool(booltoken)
+        elif self.current_token.type == t.CONST_REGULAR_STR:
+            strtoken = self.current_token
+            self.eat(t.CONST_REGULAR_STR)
+            return ast.RegularStr(strtoken)
 
     def parse(self):
         node = self.program()

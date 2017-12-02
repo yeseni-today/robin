@@ -25,11 +25,14 @@ DOT, COMMA, SEIM, LPAREN, RPAREN, COLON = 'DOT', 'COMMA', 'SEIM', 'LPAREN', 'RPA
 SPACE = 'SPACE'
 ASSIGN = 'ASSIGN'
 EOF = 'EOF'
+ESCAPE = 'ESCAPE'
+
 # identity, variable type token
 ID = 'ID'
 CONST_REAL = 'REAL'
 CONST_INTEGER = 'INTEGER'
 CONST_BOOL = 'BOOL'
+CONST_REGULAR_STR = 'REGULAR_STR'
 
 
 # 单个符号标记
@@ -48,8 +51,10 @@ SINGLE_MARK_DICT = {
     # ' ': Token(type=SPACE, value=' '),
     '=': Token(type=ASSIGN, value='='),
     '>': Token(type=GREAT_THAN, value='>'),
-    '<': Token(type=LESS_THAN, value='<')
+    '<': Token(type=LESS_THAN, value='<'),
+    '\\': Token(type=ESCAPE, value='\\')
 }
+
 LESS_EQUAL, GREAT_EQUAL = '<=', '>='
 EQUAL = '=='
 # 双符号组合

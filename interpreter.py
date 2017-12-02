@@ -4,7 +4,7 @@
 Simple Robin Interpreter
 """
 import builtins
-
+import symbols
 from pparser import *
 
 __author__ = 'Aollio Hou'
@@ -26,74 +26,6 @@ class Visitor:
     def generic_visit(self, node):
         raise Exception('Visit function {func} not exist'.format(
             func='visit_' + type(node).__name__.lower()))
-
-
-class Symbol:
-    def __init__(self, name, type=None):
-        self.type = type
-        self.name = name
-
-
-class BuiltinTypeSymbol(Symbol):
-    def __init__(self, name):
-        super(BuiltinTypeSymbol, self).__init__(name)
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return "<{class_name}(name='{name}')>".format(class_name=self.__class__.__name__, name=self.name)
-
-
-class BuiltinFunctionSymbol(Symbol):
-    """
-    Builtin Function. the dynamic return type.
-    """
-
-    def __init__(self, name, value: callable, type=None):
-        super().__init__(name, type)
-        self.value = value
-        self.type = type
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return "<{class_name}(name='{name}')>".format(class_name=self.__class__.__name__, name=self.name)
-
-
-class VarSymbol(Symbol):
-    """内存中变量模型, 每个变量包含它的名字, 类型, 值(或者指向的对象)"""
-
-    def __init__(self, name, type, value):
-        super(VarSymbol, self).__init__(name, type)
-        self.value = value
-
-    def __str__(self):
-        return f'{self.__class__.__name__}(name={self.name}, type={self.type}, value={self.value})'
-
-    __repr__ = __str__
-
-
-class FunctionSymbol(Symbol):
-    """
-    The type is None because in default function don't return anything.
-    """
-
-    def __init__(self, name, params, block, type=None):
-        super(FunctionSymbol, self).__init__(name, type)
-        # a list of formal parameters
-        self.params = params if params is not None else []
-        self.block = block if block is not None else ast.EmptyOp()
-
-    def __str__(self):
-        return '<{class_name}(name={name}, parameters={params})>'.format(
-            class_name=self.__class__.__name__,
-            name=self.name,
-            params=self.params
-        )
-
-    __repr__ = __str__
 
 
 def op_operate(left, op, right):
@@ -130,10 +62,10 @@ class ScopeDict:
         # init builtin function
         for key, item in builtins.__dict__.items():
             if callable(item):
-                builtin_fun = BuiltinFunctionSymbol(key, value=item)
+                builtin_fun = symbols.BuiltinFunctionSymbol(key, value=item)
                 self.put(builtin_fun)
 
-    def put(self, symbol: Symbol):
+    def put(self, symbol: symbols.Symbol):
         self.scope[symbol.name] = symbol
 
     def get(self, name: str):
@@ -184,7 +116,7 @@ class Interpreter(Visitor):
 
     def visit_functiondef(self, node: ast.FunctionDef):
         """Build a function symbol. Put to symbol scope"""
-        funsymbol = FunctionSymbol(name=node.name, params=node.params, block=node.block)
+        funsymbol = symbols.FunctionSymbol(name=node.name, params=node.params, block=node.block)
         self.scope.put(funsymbol)
         pass
 
@@ -198,7 +130,7 @@ class Interpreter(Visitor):
         function = self.scope.get(node.name)
 
         # if the function is builtin function
-        if isinstance(function, BuiltinFunctionSymbol):
+        if isinstance(function, symbols.BuiltinFunctionSymbol):
             return function.value(*[self.visit(arg) for arg in node.args])
 
         # if the function is user custom function
@@ -209,9 +141,9 @@ class Interpreter(Visitor):
         # initialize args to function scope by param order
         for param_token in function.params:
             arg_value = self.visit(node.args.pop(0))
-            param_sym = VarSymbol(name=param_token.value,
-                                  type=type(arg_value),
-                                  value=arg_value)
+            param_sym = symbols.VarSymbol(name=param_token.value,
+                                          type=type(arg_value),
+                                          value=arg_value)
             scope.put(param_sym)
 
         # exit function scope
@@ -235,7 +167,7 @@ class Interpreter(Visitor):
     def visit_assign(self, node: ast.Assign):
         """Assign value will check type of variable"""
         var_value = self.visit(node.right)
-        var = VarSymbol(name=node.left.value, type=type(var_value), value=var_value)
+        var = symbols.VarSymbol(name=node.left.value, type=type(var_value), value=var_value)
         self.scope.put(var)
 
     def visit_var(self, node: ast.Var):
@@ -256,6 +188,9 @@ class Interpreter(Visitor):
         return node.value
 
     def visit_bool(self, node: ast.Bool):
+        return node.value
+
+    def visit_regularstr(self, node:ast.RegularStr):
         return node.value
 
     def visit_emptyop(self, node: ast.EmptyOp):
