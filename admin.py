@@ -10,7 +10,6 @@ __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
 
 
-
 class FileParser(Parser):
     def __init__(self, file):
         text = open(file, mode='r+', encoding='utf-8').read()
@@ -30,16 +29,15 @@ def test():
         path = os.path.join(dir, each_file)
         logging.info(f'begin test {path}')
         inter = FileInterpreter(path)
-        result = False
         try:
             inter.intreperter()
             # get result from global scope
             result = inter.get_global().get(config.result_name)
-            if result:
-                logging.info(f'{path} test passed')
         except Exception as e:
-            logging.error(f'{path} test failed. raise {e}')
+            print(f'{path} test failed. raise {e}')
             raise e
+        if result:
+            print(f'{path} test passed')
 
 
 def run(file):

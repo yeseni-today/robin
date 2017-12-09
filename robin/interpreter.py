@@ -78,28 +78,6 @@ class ScopeDict:
             raise ValueError('Unknown Symbol name %r' % name)
 
 
-class Memory(dict):
-    def __init__(self, parent=None, init=False):
-        super(Memory, self).__init__()
-        self.parent = parent
-        if init:
-            self._init_built_symbol()
-
-    def _init_built_symbol(self):
-        # self['print'] = print
-        for key, item in builtins.__dict__.items():
-            if callable(item):
-                self[key] = item
-
-    def get(self, k, **kwargs):
-        value = super(Memory, self).get(k, None)
-        if value is not None:
-            return value
-
-        if self.parent is not None:
-            return self.parent.get(k, **kwargs)
-
-
 class Interpreter(Visitor):
     def __init__(self, tree):
         # symbol table

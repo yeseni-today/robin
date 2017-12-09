@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 
-__author__ = 'Aollio Hou'
-__email__ = 'aollio@outlook.com'
-
 from functools import partial
 import logging
 
 from robin.tokens import Token
 from robin import tokens as t
 from robin.util import log_def
+
+__author__ = 'Aollio Hou'
+__email__ = 'aollio@outlook.com'
 
 log = logging.getLogger('Lexer')
 log_def = partial(log_def, log=log)
