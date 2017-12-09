@@ -32,9 +32,10 @@ ID = 'ID'
 CONST_REAL = 'REAL'
 CONST_INTEGER = 'INTEGER'
 CONST_BOOL = 'BOOL'
-CONST_REGULAR_STR = 'REGULAR_STR'
-
-
+# e.g. a = 'Hello World'
+CONST_STR = 'REGULAR_STR'
+# e.g. a = b'Hello World'
+CONST_BYTES = 'BYTES_STR'
 # 单个符号标记
 SINGLE_MARK_DICT = {
     '+': Token(type=PLUS, value='+'),
@@ -63,7 +64,6 @@ DOUBLE_MARK_DICT = {
     '>=': Token(GREAT_EQUAL, value=GREAT_EQUAL),
     '==': Token(EQUAL, value=EQUAL)
 }
-
 
 INDENT, LINE_END = 'INDENT', 'LINE_END'
 # keyword

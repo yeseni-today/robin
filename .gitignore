@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 .idea/
+Pipfile.lockpip
 
 # C extensions
 *.so

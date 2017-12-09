@@ -14,6 +14,8 @@ __email__ = 'aollio@outlook.com'
 log = logging.getLogger('Lexer')
 log_def = partial(log_def, log=log)
 
+DEFAULT_ENCODING = 'utf-8'
+
 
 ###############################################################################
 #                                                                             #
@@ -95,21 +97,25 @@ class Lexer:
     @log_def
     def regular_str(self):
         """Parsing a regular str from input stream."""
-        chars = ''
-        # begin char is \' or \"
-        begin = self.current_char
-        self.next_pos()
-        while self.current_char is not None and self.text[self.pos] != begin:
-            chars += self.current_char
-            if self.current_char == '\\':
-                self.next_pos()
-                chars += self.current_char
-            self.next_pos()
-        # skip the ending character
-        self.next_pos()
+        chars = self._parse_string()
         # escape processing
         chars = chars.encode().decode('unicode-escape')
-        return Token(t.CONST_REGULAR_STR, chars)
+        return Token(t.CONST_STR, chars)
+
+    @log_def
+    def prefix_str(self):
+        """Parsing a string with prefix like 'r', 'b' and 'f'"""
+        prefix = self.current_char
+        self.next_pos()
+        chars = self._parse_string()
+        if prefix == 'b':
+            # escape processing
+            chars = chars.encode().decode('unicode-escape')
+            return Token(t.CONST_BYTES, bytes(chars, encoding=DEFAULT_ENCODING))
+        elif prefix == 'r':
+            return Token(t.CONST_STR, chars)
+        elif prefix == 'f':
+            raise SyntaxError("'f' string not support.")
 
     def error(self):
         raise Exception("Invalid Character '%s'" % self.text[self.pos])
@@ -137,6 +143,16 @@ class Lexer:
 
             current_char = self.current_char
 
+            # regular string. like 'something' or "something"
+            if current_char in "\'\"":
+                self.tokens.append(self.regular_str())
+                return
+            # parse string with prefix. like r,b,f(not support)
+            if current_char in 'rbf' \
+                    and self._peek_char() in "\'\"":
+                self.tokens.append(self.prefix_str())
+                return
+
             # id. keyword or variable
             if current_char.isalpha() or current_char == '_':
                 self.tokens.append(self.id())
@@ -145,11 +161,6 @@ class Lexer:
             # (multi)integer.
             if current_char.isdigit():
                 self.tokens.append(self.number())
-                return
-
-            # regular string. like 'something' or "something"
-            if current_char in "\'\"":
-                self.tokens.append(self.regular_str())
                 return
 
                 # new line
@@ -186,6 +197,18 @@ class Lexer:
             # 如果输入流结束, 返回一个EOF Token
             # if self.current_char is None:
             #     return Token(type=EOF)
+
+    def _parse_string(self):
+        chars = ''
+        # begin char is \' or \"
+        begin = self.current_char
+        self.next_pos()
+        while self.current_char is not None and self.text[self.pos] != begin:
+            chars += self.current_char
+            self.next_pos()
+        # skip the ending character
+        self.next_pos()
+        return chars
 
     def _peek_char(self, seek=1):
         """向前看一个字符"""
