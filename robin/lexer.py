@@ -1,250 +1,332 @@
-#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from abc import ABC, abstractmethod
+from robin import tokens
+from robin.tokens import Token, iskeyword
+from robin import automate
+import config
 
 
-from functools import partial
-import logging
-
-from robin.tokens import Token
-from robin import tokens as t
-from robin.util import log_def
-
-__author__ = 'Aollio Hou'
-__email__ = 'aollio@outlook.com'
-
-log = logging.getLogger('Lexer')
-log_def = partial(log_def, log=log)
-
-DEFAULT_ENCODING = 'utf-8'
+def lf_lines(text):
+    """将text中的换行符替换为\n"""
+    lines = []
+    for line in text.splitlines():
+        lines.append(line + '\n')
+    return lines
 
 
-###############################################################################
-#                                                                             #
-#  Lexer                                                                      #
-#                                                                             #
-###############################################################################
+class Context(object):
+    def __init__(self, text):
+        self.lines = lf_lines(text)
+        self.line_no = 0
+        self.line = self.lines[self.line_no]
+        self.position = 0  # todo offset  '\t'
+        self.current_char = self.line[self.position]
+        self.indent_stack = [0]  # 处理indent dedent
+        self.brackets_stack = []  # 处理隐式行连接 在() [] {}中
 
 
-class Lexer:
-    def __init__(self, text: str):
-        self.tokens = []
+class Scaner(ABC):
+    def __init__(self, context):
+        self.context = context
 
-        self.text = text
-        if len(text) == 0:
-            self.current_char = None
-            self.tokens.append(Token(type=t.EOF))
-            return
+    @property
+    def lines(self):
+        return self.context.lines
 
-        self.pos = 0
-        self.current_char = self.text[self.pos]
-        while self.current_char is not None:
-            self._parse_token()
-        self.tokens.append(Token(type=t.EOF))
+    @property
+    def line_no(self):
+        return self.context.line_no
 
-    def next_pos(self):
-        """将当前位置向后移一位"""
-        if self.pos is None:
-            return None
-        self.pos += 1
-        if self.pos > len(self.text) - 1:
-            self.pos = None
-            self.current_char = None
-            return
-        self.current_char = self.text[self.pos]
+    @line_no.setter
+    def line_no(self, line_no):
+        self.context.line_no = line_no
 
-    @log_def
-    def id(self):
-        """从输入中获取一个标识符 Identity"""
-        chars = ''
-        while self.current_char is not None and \
-                self.current_char.isalnum() \
-                or self.current_char == '_':
-            chars += self.current_char
-            self.next_pos()
-        token = t.PRESERVE_DICT.get(chars, Token(type=t.ID, value=chars))
-        return token
+    @property
+    def line(self):
+        return self.context.line
 
-    def newline_and_indent(self):
-        if self.current_char == '\n':
-            self.tokens.append(Token(type=t.LINE_END, value=t.LINE_END))
-            self.next_pos()
-        count = 0
-        while self.current_char == ' ':
-            count += 1
-            self.next_pos()
-        if count % 4 != 0:
-            raise Exception("Wrong Indent")
-        a = count // 4
-        [self.tokens.append(Token(type=t.INDENT)) for x in range(a)]
+    @line.setter
+    def line(self, line):
+        self.context.line = line
 
-    @log_def
-    def number(self):
-        """从输入中获取一个数字串"""
-        chars = ''
-        while self.current_char is not None and self.text[self.pos].isdigit():
-            chars += self.text[self.pos]
-            self.next_pos()
+    @property
+    def position(self):
+        return self.context.position
 
-        if self.current_char == '.':
-            chars += self.current_char
-            self.next_pos()
-            while self.current_char is not None and self.current_char.isdigit():
-                chars += self.current_char
-                self.next_pos()
-            return Token(type=t.CONST_REAL, value=float(chars))
+    @position.setter
+    def position(self, position):
+        self.context.position = position
+
+    @property
+    def current_char(self):
+        return self.context.current_char
+
+    @current_char.setter
+    def current_char(self, current_char):
+        self.context.current_char = current_char
+
+    @property
+    def indent_stack(self):
+        return self.context.indent_stack
+
+    @indent_stack.setter
+    def indent_stack(self, indent_stack):
+        self.context.indent_stack = indent_stack
+
+    @property
+    def brackets_stack(self):
+        return self.context.brackets_stack
+
+    @brackets_stack.setter
+    def brackets_stack(self, brackets_stack):
+        self.context.brackets_stack = brackets_stack
+
+    #############################
+
+    def look_around(self, n):
+        """:argument n 左负 右正"""
+        return self.line[self.position + n]
+
+    def next_char(self):
+        if self.current_char == '\n':  # 行末
+            self.next_line()
         else:
-            return Token(type=t.CONST_INTEGER, value=int(chars))
+            self.position += 1
+            self.current_char = self.line[self.position]
 
-    @log_def
-    def regular_str(self):
-        """Parsing a regular str from input stream."""
-        chars = self._parse_string()
-        # escape processing
-        chars = chars.encode().decode('unicode-escape')
-        return Token(t.CONST_STR, chars)
+    def next_line(self):
+        if self.line_no == len(self.lines) - 1:  # 结束
+            self.current_char = None
+            return
+        self.line_no += 1
+        self.position = 0
+        self.line = self.lines[self.line_no]
+        self.current_char = self.line[self.position]
 
-    @log_def
-    def prefix_str(self):
-        """Parsing a string with prefix like 'r', 'b' and 'f'"""
-        prefix = self.current_char
-        self.next_pos()
-        chars = self._parse_string()
-        if prefix == 'b':
-            # escape processing
-            chars = chars.encode().decode('unicode-escape')
-            return Token(t.CONST_BYTES, bytes(chars, encoding=DEFAULT_ENCODING))
-        elif prefix == 'r':
-            return Token(t.CONST_STR, chars)
-        elif prefix == 'f':
-            raise SyntaxError("'f' string not support.")
+    def skip_whitespace(self):
+        while self.current_char and self.current_char.isspace():
+            self.next_char()
+
+    def make_token(self, type, value):
+        return Token(type=type, value=value, line=self.line_no, column=self.position)  # todo offset  '\t'
 
     def error(self):
-        raise Exception("Invalid Character '%s'" % self.text[self.pos])
+        # todo 自定义异常  offset  '\t'
+        print(f'line {self.line_no}')
+        print(self.lines[self.line_no][0:-1])
+        print(' ' * self.position + '^')
+        print('Lexical error: invalid char')
+        exit()
 
-    def skip_comment(self):
-        if self.current_char is not None and self.text[self.pos] == '#':
-            self.next_pos()
-            while self.current_char is not None and self.text[self.pos] != '\n':
-                self.next_pos()
-            self.tokens.append(Token(type=t.LINE_END))
-        # self.next_pos is `\n` character
-        # so if the next line begin with `#`, eat the NEWLINE token
-        if self.current_char == '\n' and self._peek_char() in (None, '#'):
-            self.next_pos()
+    #############################
 
-    def skip_space(self):
-        while self.current_char == ' ':
-            self.next_pos()
+    # 判断当前位置是否符合子类需要的token类型
+    @abstractmethod
+    def match(self):
+        pass
 
-    @log_def
-    def _parse_token(self):
-        """获取下一个token"""
+    # 扫描并返回token
+    @abstractmethod
+    def scan(self):
+        pass
 
-        while self.current_char is not None:
 
-            current_char = self.current_char
+class IndentScaner(Scaner):
+    def match(self):
+        return self.position == 0
 
-            # regular string. like 'something' or "something"
-            if current_char in "\'\"":
-                self.tokens.append(self.regular_str())
-                return
-            # parse string with prefix. like r,b,f(not support)
-            if current_char in 'rbf' \
-                    and self._peek_char() in "\'\"":
-                self.tokens.append(self.prefix_str())
-                return
+    def scan(self):
+        indent_num = self.indent_skip()
+        while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
+            self.next_line()
+            indent_num = self.indent_skip()
 
-            # id. keyword or variable
-            if current_char.isalpha() or current_char == '_':
-                self.tokens.append(self.id())
-                return
+        return self.indent_judge(indent_num)
 
-            # (multi)integer.
-            if current_char.isdigit():
-                self.tokens.append(self.number())
-                return
+    def indent_skip(self):
+        """跳过缩进，并返回缩进的格数"""
+        indent_num = 0
+        while self.current_char in (' ', '\t'):  # 空格符 制表符
+            if self.current_char == ' ':
+                indent_num += 1
+            else:
+                indent_num += config.TABSIZE - indent_num % config.TABSIZE
+            self.next_char()
+        return indent_num
 
-                # new line
-            if current_char == '\n':
-                self.newline_and_indent()
-                return
+    def indent_judge(self, indent_num):
+        """:argument indent_num 以此判断应该INDENT还是DEDENT或没有"""
+        last_indent = self.indent_stack[-1]
 
-            # double mark， like '==', '<='...
-            if self._peek_char() is not None \
-                    and self.current_char is not None \
-                    and self.current_char + self._peek_char() in t.DOUBLE_MARK_DICT:
-                mark = self.current_char + self._peek_char()
-                self.next_pos()
-                self.next_pos()
-                self.tokens.append(t.DOUBLE_MARK_DICT.get(mark, ))
-                return
-
-            # single mark, like '=', '+'...
-            if current_char in t.SINGLE_MARK_DICT:
-                self.next_pos()
-                self.tokens.append(t.SINGLE_MARK_DICT.get(current_char, ))
-                return
-
-            # comment
-            if current_char == '#':
-                self.skip_comment()
-                continue
-            if current_char == ' ':
-                self.skip_space()
-                continue
-                # return SINGLE_MARK_DICT.get(current_char,)
-
-            self.error()
-            # 如果输入流结束, 返回一个EOF Token
-            # if self.current_char is None:
-            #     return Token(type=EOF)
-
-    def _parse_string(self):
-        chars = ''
-        # begin char is \' or \"
-        begin = self.current_char
-        self.next_pos()
-        while self.current_char is not None and self.text[self.pos] != begin:
-            chars += self.current_char
-            self.next_pos()
-        # skip the ending character
-        self.next_pos()
-        return chars
-
-    def _peek_char(self, seek=1):
-        """向前看一个字符"""
-        if self.pos + seek < len(self.text):
-            return self.text[self.pos + seek]
-        else:
+        if indent_num > last_indent:  # INDENT
+            self.indent_stack.append(indent_num)
+            return self.make_token(tokens.INDENT, indent_num)
+        elif indent_num < last_indent:  # DEDENT
+            dedent_count = 0
+            while indent_num < last_indent:
+                dedent_count += 1
+                last_indent = self.indent_stack[-1 - dedent_count]
+            self.indent_stack = self.indent_stack[:- dedent_count]
+            return self.make_token(tokens.DEDENT, dedent_count)
+        elif indent_num == last_indent:
             return None
+        raise Exception('IndentationError: unindent does not match any outer indentation level')
 
-    def peek_token(self, seek=0):
-        if len(self.tokens) > seek + 1:
-            return self.tokens[seek]
+
+class EndScaner(Scaner):
+    def match(self):
+        return self.current_char in ('\\', '\n', None)
+
+    # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
+    def scan(self):
+        if self.current_char is None:  # 全结束
+            return self.make_token(tokens.ENDMARKER, '')
+
+        if self.current_char == '\n':  # 物理行结束
+            if len(self.brackets_stack) == 0:  # 逻辑行结束
+                token = self.make_token(tokens.NEWLINE, '')
+                self.next_line()
+                return token
+            else:  # 隐式行连接
+                self.next_line()
+                self.skip_whitespace()
+
+        if self.current_char == '\\' and self.look_around(1) == '\n':  # 显式行连接
+            self.next_line()
+            self.skip_whitespace()
+
+
+class NumberScaner(Scaner):
+    def match(self):
+        return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
+
+    def scan(self):
+        number_dfa = automate.number_dfa
+
+        while number_dfa.accept(self.current_char):
+            self.next_char()
+        if number_dfa.is_final():
+            token = self.make_token(tokens.LITERALS, self.str2num(number_dfa.string))
+            number_dfa.reset()
+            return token
         else:
-            return Token(type=t.EOF)
+            self.error()
 
-    def read(self):
-        if self.tokens:
-            return self.tokens.pop(0)
-        return Token(type=t.EOF)
+    def str2num(self, string):
+        string = string.lower()
+        if string[-1] == 'j':
+            return complex(string)
+        if 'x' in string:
+            return int(string, base=16)
+        if 'o' in string:
+            return int(string, base=8)
+        if 'b' in string:
+            return int(string, base=2)
+        if 'e' in string or '.' in string:
+            return float(string)
+        return int(string)
 
 
-def _main():
-    import argparse
-    parser = argparse.ArgumentParser("Simple pascal interpreter.")
-    parser.add_argument('file', help='the pascal file name')
-    args = parser.parse_args()
-    text = open(file=args.file, encoding='utf-8').read()
-    lexer = Lexer(text)
-    token = lexer.read()
-    while token.type != t.EOF:
-        print(token)
-        token = lexer.read()
-    print(Token(type=t.EOF))
+class NameScaner(Scaner):
+    def match(self):
+        return self.current_char and self.current_char.isidentifier()
+
+    def scan(self):
+        name = self.current_char
+        self.next_char()
+        while self.current_char and self.current_char.isidentifier() or self.current_char in '0123456789':
+            name += self.current_char
+            self.next_char()
+
+        if iskeyword(name):
+            return self.make_token(tokens.KEYWORDS, name)
+        return self.make_token(tokens.ID, name)
+
+
+class StrScaner(Scaner):
+    def __init__(self, context):
+        super().__init__(context)
+        self.prefix = ''  # 前缀
+
+    def match(self):
+        if self.current_char in 'uU' and self.look_around(1) in '\'\"':
+            return True
+        elif self.current_char in 'rR':
+            if self.look_around(1) in '\'\"':
+                return True
+            elif self.look_around(1) in 'bB' and self.look_around(2) in '\'\"':
+                return True
+        elif self.current_char in 'bB':
+            if self.look_around(1) in '\'\"':
+                return True
+            elif self.look_around(1) in 'rR' and self.look_around(2) in '\'\"':
+                return True
+        elif self.current_char in 'fF' and self.look_around(1) in '\'\"':  # 格式化字符串
+            return True
+        return False
+
+    def scan(self):
+        self.scan_prefix()
+
+    def scan_prefix(self):
+        while self.current_char != '\'\"':
+            self.prefix += self.current_char
+            self.next_char()
+
+
+class Lexer(Scaner):
+    def match(self):
+        pass
+
+    def scan(self):
+        pass
+
+    def __init__(self, text):
+        super().__init__(Context(text))
+        self.indent_scaner = IndentScaner(self.context)
+        self.str_scaner = StrScaner(self.context)
+        self.name_scaner = NameScaner(self.context)
+        self.number_scaner = NumberScaner(self.context)
+        self.end_scaner = EndScaner(self.context)
+
+    def get_token(self):
+
+        if self.indent_scaner.match():  # 行开始
+            token = self.indent_scaner.scan()
+            if token: return token
+
+        self.skip_whitespace()
+
+        # TODO 临时逻辑，通过测试
+        # @author: aollio
+        if not self.current_char:
+            return self.end_scaner.scan()
+
+        if self.str_scaner.match():  # 字符串  在标识符或关键字之前判断
+            return self.str_scaner.scan()
+
+        if self.name_scaner.match():  # 标识符或关键字
+            return self.name_scaner.scan()
+
+        if self.number_scaner.match():  # 数字
+            return self.number_scaner.scan()
+
+        if self.end_scaner.match():  # 全结束 或 行结束
+            token = self.end_scaner.scan()
+            if token: return token
+
+        # todo 操作符 分割符
+
+        # indent_scaner 和 end_scaner 可能返回None 就再次调用get_token()
+        return self.get_token()
 
 
 if __name__ == '__main__':
-    import logging
+    a = 'a\n    b\nc\rd\r\ne'
+    import tokenize
 
-    logging.basicConfig(level=logging.INFO)
-    _main()
+    lexer = Lexer(a)
+    token = lexer.get_token()
+    while token.type != tokens.ENDMARKER:
+        print(token)
+        token = lexer.get_token()

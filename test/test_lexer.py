@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
-from lexer import Lexer
-import tokens
+from robin.lexer import Lexer
+from robin import tokens
 
 
 def test_lexer(string):
     print(string)
-    lines = []
-    for line in string.split('\n'):
-        lines.append(line + '\n')
-    lexer = Lexer(lines)
+    lexer = Lexer(string)
     while True:
         token = lexer.get_token()
         print(token)
@@ -31,8 +28,8 @@ def test_name():
 
 
 if __name__ == '__main__':
-    test_number()
-    # test_name()
+    # test_number()
+    test_name()
     '''
     a
     '''

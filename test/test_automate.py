@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import automate
+from robin import automate
 
 
 def test_automate(automate, cases):
@@ -39,6 +39,6 @@ def test_number_dfa():
 
 if __name__ == '__main__':
     test_number_dfa()
-    # test_float_complex_dfa()
-    # test_int_dfa()
+    test_float_complex_dfa()
+    test_int_dfa()
     pass
