@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
 from robin import config
-from lexer import util
-from robin import automate
+from lexer import util, automate
 from lexer import tokens
 from lexer.tokens import Token, iskeyword
 import logging
@@ -15,8 +14,8 @@ def lf_lines(text):
     for line in text.splitlines():
         lines.append(line + '\n')
 
-    logging.info(f'\nlines{lines}')
-    logging.info('\n'+text)
+    # logging.info(f'\nlines{lines}')
+    # logging.info('\n'+text)
     return lines
 
 
