@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import keyword
 from collections import namedtuple
@@ -12,8 +13,9 @@ ID = 'id'
 KEYWORDS = 'keywords'
 
 LITERALS = 'literals'
-# NUMBER = 'number'
-# STRING = 'string'
+NUMBER = 'number'
+STRING = 'string'
+BYTES = 'bytes'
 
 OPERATOR = 'operator'
 DELIMITER = 'delimiter'
@@ -43,7 +45,14 @@ delimiter = set('''
 # break      except     in         raise
 
 keywords = frozenset('''
-if         else       elif
+if          else        elif       
+False       True        None
+class       def         return      pass
+from        import
+raise
+for         in          while
+is          not
+del
 '''.split())
 
 

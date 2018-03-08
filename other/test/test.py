@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from enum import Enum
@@ -37,9 +38,21 @@ def test_fstr():
     dis.dis(fstring)
 
 
+
+def test_logging():
+    import logging
+    logging.basicConfig(level=logging.ERROR)
+    logging.debug('asdfsaf')
+    logging.info('asdfsaf')
+    logging.warning('asdfsaf')
+    logging.error('asdfsaf')
+
+
+
 if __name__ == '__main__':
     import tokenize, token
-
     # a = 'a\n    b\nc\rd\r\ne'
     # print(a.splitlines(keepends=True))
-    test_fstr()
+    # test_fstr()
+    # test_func()
+    # test_logging()
