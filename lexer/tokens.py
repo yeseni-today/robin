@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import keyword
 from collections import namedtuple
@@ -12,8 +13,9 @@ ID = 'id'
 KEYWORDS = 'keywords'
 
 LITERALS = 'literals'
-# NUMBER = 'number'
-# STRING = 'string'
+NUMBER = 'number'
+STRING = 'string'
+BYTES = 'bytes'
 
 OPERATOR = 'operator'
 DELIMITER = 'delimiter'
@@ -34,17 +36,23 @@ delimiter = set('''
 '''.split())
 
 # 关键字 33
-
+# False      class      finally    is         return
+# None       continue   for        lambda     try
+# True       def        from       nonlocal   while
+# and        del        global     not        with
+# as         elif       if         or         yield
+# assert     else       import     pass
+# break      except     in         raise
 
 keywords = frozenset('''
-if         else       elif
-False      class      finally    is         return
-None       continue   for        lambda     try
-True       def        from       nonlocal   while
-and        del        global     not        with
-as         elif       if         or         yield
-assert     else       import     pass
-break      except     in         raise
+if          else        elif       
+False       True        None
+class       def         return      pass
+from        import
+raise
+for         in          while
+is          not
+del
 '''.split())
 
 

@@ -1,9 +1,12 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
-from robin import tokens
-from robin.tokens import Token, iskeyword
+from robin import config
+from lexer import util
 from robin import automate
-import config
+from lexer import tokens
+from lexer.tokens import Token, iskeyword
+import logging
 
 
 def lf_lines(text):
@@ -11,6 +14,9 @@ def lf_lines(text):
     lines = []
     for line in text.splitlines():
         lines.append(line + '\n')
+
+    logging.info(f'\nlines{lines}')
+    logging.info('\n'+text)
     return lines
 
 
@@ -85,7 +91,9 @@ class Scaner(ABC):
 
     def look_around(self, n):
         """:argument n 左负 右正"""
-        return self.line[self.position + n]
+        pos = self.position + n
+        if pos <= len(self.line) - 1:
+            return self.line[pos]
 
     def next_char(self):
         if self.current_char == '\n':  # 行末
@@ -103,12 +111,12 @@ class Scaner(ABC):
         self.line = self.lines[self.line_no]
         self.current_char = self.line[self.position]
 
-    def skip_whitespace(self):
-        while self.current_char and self.current_char.isspace():
-            self.next_char()
-
     def make_token(self, type, value):
         return Token(type=type, value=value, line=self.line_no, column=self.position)  # todo offset  '\t'
+
+    def skip_whitespace(self):
+        while self.current_char not in (None, '\n') and self.current_char.isspace():
+            self.next_char()
 
     def error(self):
         # todo 自定义异常  offset  '\t'
@@ -126,6 +134,7 @@ class Scaner(ABC):
         pass
 
     # 扫描并返回token
+
     @abstractmethod
     def scan(self):
         pass
@@ -135,6 +144,7 @@ class IndentScaner(Scaner):
     def match(self):
         return self.position == 0
 
+    @util.call_log('IndentScaner')
     def scan(self):
         indent_num = self.indent_skip()
         while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
@@ -170,7 +180,8 @@ class IndentScaner(Scaner):
             return self.make_token(tokens.DEDENT, dedent_count)
         elif indent_num == last_indent:
             return None
-        raise Exception('IndentationError: unindent does not match any outer indentation level')
+
+        self.error()  # IndentationError: unindent does not match any outer indentation level
 
 
 class EndScaner(Scaner):
@@ -178,20 +189,19 @@ class EndScaner(Scaner):
         return self.current_char in ('\\', '\n', None)
 
     # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
+    @util.call_log('EndScaner')
     def scan(self):
-        if self.current_char is None:  # 全结束
+        char = self.current_char
+        if char is None:  # 全结束
             return self.make_token(tokens.ENDMARKER, '')
 
-        if self.current_char == '\n':  # 物理行结束
-            if len(self.brackets_stack) == 0:  # 逻辑行结束
-                token = self.make_token(tokens.NEWLINE, '')
-                self.next_line()
-                return token
-            else:  # 隐式行连接
-                self.next_line()
-                self.skip_whitespace()
+        if char == '\n' and len(self.brackets_stack) == 0:  # 逻辑行结束
+            token = self.make_token(tokens.NEWLINE, '')
+            self.next_line()
+            return token
 
-        if self.current_char == '\\' and self.look_around(1) == '\n':  # 显式行连接
+        if (char == '\\' and self.look_around(1) == '\n') \
+                or (char == '\n' and len(self.brackets_stack) != 0):  # 显式行连接 隐式行连接
             self.next_line()
             self.skip_whitespace()
 
@@ -200,41 +210,45 @@ class NumberScaner(Scaner):
     def match(self):
         return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
 
+    @util.call_log('NumberScaner')
     def scan(self):
         number_dfa = automate.number_dfa
 
         while number_dfa.accept(self.current_char):
             self.next_char()
         if number_dfa.is_final():
-            token = self.make_token(tokens.LITERALS, self.str2num(number_dfa.string))
+            token = self.make_token(tokens.NUMBER, number_dfa.string)
+            # token = self.make_token(tokens.NUMBER, self.str2num(number_dfa.string))
             number_dfa.reset()
             return token
         else:
             self.error()
 
-    def str2num(self, string):
-        string = string.lower()
-        if string[-1] == 'j':
-            return complex(string)
-        if 'x' in string:
-            return int(string, base=16)
-        if 'o' in string:
-            return int(string, base=8)
-        if 'b' in string:
-            return int(string, base=2)
-        if 'e' in string or '.' in string:
-            return float(string)
-        return int(string)
+    # def str2num(self, string):
+    #     # todo 移到语法分析中
+    #     string = string.lower()
+    #     if string[-1] == 'j':
+    #         return complex(string)
+    #     if 'x' in string:
+    #         return int(string, base=16)
+    #     if 'o' in string:
+    #         return int(string, base=8)
+    #     if 'b' in string:
+    #         return int(string, base=2)
+    #     if 'e' in string or '.' in string:
+    #         return float(string)
+    #     return int(string)
 
 
 class NameScaner(Scaner):
     def match(self):
         return self.current_char and self.current_char.isidentifier()
 
+    @util.call_log('NameScaner')
     def scan(self):
         name = self.current_char
         self.next_char()
-        while self.current_char and self.current_char.isidentifier() or self.current_char in '0123456789':
+        while (self.current_char and self.current_char.isidentifier()) or self.current_char in '0123456789':
             name += self.current_char
             self.next_char()
 
@@ -244,34 +258,108 @@ class NameScaner(Scaner):
 
 
 class StrScaner(Scaner):
+    def match(self):
+        head = self.current_char
+        if head in '\'\"':
+            return True
+        if head.lower() in 'rufb':
+            if self.look_around(1) in '\'\"':
+                return True
+            head += self.look_around(1)
+            if head.lower() in ('fr', 'rf', 'br', 'rb') and self.look_around(2) in '\'\"':
+                return True
+        return False
+
+    @util.call_log('StrScaner')
+    def scan(self):
+        string = ''
+        while self.current_char not in '\'\"':  # 前缀
+            string += self.current_char
+            self.next_char()
+
+        is_bytes = False
+        if 'b' in string.lower():
+            is_bytes = True
+
+        quote = self.current_char  # 单引号或双引号
+        quote_num = self.quote_num()  # 1 or 3
+
+        string += quote * quote_num
+        while True:
+            char = self.current_char
+            if quote_num == 1 and char == '\n' or char is None:
+                self.error()  # SyntaxError: EOL while scanning string literal
+            elif char == '\\':
+                string += '\\'
+                self.next_char()
+                string += self.current_char
+                self.next_char()
+            elif char == quote and self.quote_num() == quote_num:
+                string += quote * quote_num
+                if is_bytes:
+                    return self.make_token(tokens.BYTES, string)
+                else:
+                    return self.make_token(tokens.STRING, string)
+            elif is_bytes and not util.is_ascii(char):
+                self.error()  # SyntaxError: bytes can only contain ASCII literal characters.
+            else:
+                string += char
+                self.next_char()
+
+    def quote_num(self):
+        if self.current_char == self.look_around(1) == self.look_around(2):
+            self.next_char()
+            self.next_char()
+            self.next_char()
+            return 3
+        else:
+            self.next_char()
+            return 1
+
+
+class OpDelimiterScaner(Scaner):
     def __init__(self, context):
         super().__init__(context)
-        self.prefix = ''  # 前缀
+        self.len = 0
 
     def match(self):
-        if self.current_char in 'uU' and self.look_around(1) in '\'\"':
+        self.len = 0
+        op_delimiter = self.current_char
+        if op_delimiter is None:
+            return False
+        if op_delimiter in '()[]{},:.;@~':
+            self.len = 1
             return True
-        elif self.current_char in 'rR':
-            if self.look_around(1) in '\'\"':
-                return True
-            elif self.look_around(1) in 'bB' and self.look_around(2) in '\'\"':
-                return True
-        elif self.current_char in 'bB':
-            if self.look_around(1) in '\'\"':
-                return True
-            elif self.look_around(1) in 'rR' and self.look_around(2) in '\'\"':
-                return True
-        elif self.current_char in 'fF' and self.look_around(1) in '\'\"':  # 格式化字符串
+        elif op_delimiter in '+-*/%&|^<>=':
+            if self.look_around(1) == '=':
+                self.len = 2
+            else:
+                self.len = 1
+            return True
+
+        op_delimiter += self.look_around(1)
+        if op_delimiter in ('->', '!='):
+            self.len = 2
+            return True
+        elif op_delimiter in ('**', '//', '<<', '>>'):
+            if self.look_around(2) == '=':
+                self.len = 3
+            else:
+                self.len = 2
             return True
         return False
 
+    @util.call_log('OpDelimiterScaner')
     def scan(self):
-        self.scan_prefix()
-
-    def scan_prefix(self):
-        while self.current_char != '\'\"':
-            self.prefix += self.current_char
+        op_delimiter = ''
+        for i in range(self.len):
+            op_delimiter += self.current_char
             self.next_char()
+        logging.debug(f'op_delimiter= "{op_delimiter}"  len={self.len}')
+        if op_delimiter in tokens.operator:
+            return self.make_token(tokens.OPERATOR, op_delimiter)
+        elif op_delimiter in tokens.delimiter:
+            return self.make_token(tokens.DELIMITER, op_delimiter)
 
 
 class Lexer(Scaner):
@@ -288,45 +376,27 @@ class Lexer(Scaner):
         self.name_scaner = NameScaner(self.context)
         self.number_scaner = NumberScaner(self.context)
         self.end_scaner = EndScaner(self.context)
+        self.op_delimiter_scaner = OpDelimiterScaner(self.context)
 
     def get_token(self):
-
         if self.indent_scaner.match():  # 行开始
             token = self.indent_scaner.scan()
-            if token: return token
-
-        self.skip_whitespace()
-
-        # TODO 临时逻辑，通过测试
-        # @author: aollio
-        if not self.current_char:
-            return self.end_scaner.scan()
-
-        if self.str_scaner.match():  # 字符串  在标识符或关键字之前判断
-            return self.str_scaner.scan()
-
-        if self.name_scaner.match():  # 标识符或关键字
-            return self.name_scaner.scan()
-
-        if self.number_scaner.match():  # 数字
-            return self.number_scaner.scan()
-
+            if token:
+                return token
         if self.end_scaner.match():  # 全结束 或 行结束
             token = self.end_scaner.scan()
-            if token: return token
+            if token:
+                return token
 
-        # todo 操作符 分割符
+        self.skip_whitespace()  # 空白符
+        if self.str_scaner.match():  # 字符串  在标识符或关键字之前判断
+            return self.str_scaner.scan()
+        elif self.name_scaner.match():  # 标识符或关键字
+            return self.name_scaner.scan()
+        elif self.number_scaner.match():  # 数字
+            return self.number_scaner.scan()
+        elif self.op_delimiter_scaner.match():  # 操作符 分割符
+            return self.op_delimiter_scaner.scan()
 
-        # indent_scaner 和 end_scaner 可能返回None 就再次调用get_token()
+        # indent_scaner 和 end_scaner 可能返回None   skip_whitespace没返回        就再次调用get_token()
         return self.get_token()
-
-
-if __name__ == '__main__':
-    a = 'a\n    b\nc\rd\r\ne\n\n\nif    '
-    import tokenize
-
-    lexer = Lexer(a)
-    token = lexer.get_token()
-    while token.type != tokens.ENDMARKER:
-        print(token)
-        token = lexer.get_token()
