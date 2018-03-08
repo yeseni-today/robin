@@ -54,5 +54,5 @@ if __name__ == '__main__':
     # print(a.splitlines(keepends=True))
     # test_fstr()
     # test_func()
-    # test_logging()
+    #  test_logging()
     print(type(NotImplemented))

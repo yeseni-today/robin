@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import argparse
 import os
 import logging
-from robin.interpreter import *
-from config import config
 import click
+
+from robin import settings
+from robin.interpreter import *
+from lexer import Lexer
+from lexer import tokens
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
@@ -51,35 +53,52 @@ def run(file):
     interpreter.intreperter()
 
 
-@cli.command(help='Parsing Python files to Tokens')
+@cli.command(help='Using lexer parse Python file to Tokens')
 @click.argument('file')
 @click.option('-d', '--debug', is_flag=True, callback=set_debug,
               expose_value=False, is_eager=True, help='Show the debug message.')
 def lexer(file):
     a_lexer = FileLexer(file)
-    token = a_lexer.read()
-    while token.type != t.EOF:
+    token = a_lexer.get_token()
+    print(token)
+
+    while token.type != tokens.ENDMARKER:
+        token = a_lexer.get_token()
         print(token)
-        token = a_lexer.read()
-    print(Token(type=t.EOF))
 
 
-@cli.command(help='Procedure correctness test.')
-def test():
-    dir = config.test_dir
+@cli.command(help='Test python source.')
+def test_pysrc():
+    dir = settings.test_dir
     for each_file in os.listdir(dir):
         path = os.path.join(dir, each_file)
-        logging.info(f'begin test {path}')
+        logging.info(f'begin tests_pysrc {path}')
         inter = FileInterpreter(path)
         try:
             inter.intreperter()
             # get result from global scope
-            result = inter.get_global().get(config.result_name)
+            result = inter.get_global().get(settings.result_name)
         except Exception as e:
-            print(f'{path} test failed. raise {e}')
+            print(f'{path} tests_pysrc failed. raise {e}')
             raise e
         if result:
-            print(f'{path} test passed')
+            print(f'{path} tests_pysrc passed')
+
+
+@cli.command(help='Run test scripts. Unimplemented!')
+def test():
+    # TODO
+    from lexer import tests as lexer_tests
+    # from robin import tests as robin_tests
+
+    # tests_modules = [lexer_tests, robin_tests]
+    #
+    # for module_tests in tests_modules:
+    #     mod_path = module_tests.__path__[0]
+    #     for file in os.listdir(mod_path):
+    #         if not file.startswith('test_'):
+    #             continue
+    pass
 
 
 def _main():
