@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import argparse
 import os
 import logging
-from robin.interpreter import *
-from config import config
 import click
+
+from config import config
+from robin.interpreter import *
+
+from robin import tokens
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
@@ -57,11 +59,12 @@ def run(file):
               expose_value=False, is_eager=True, help='Show the debug message.')
 def lexer(file):
     a_lexer = FileLexer(file)
-    token = a_lexer.read()
-    while token.type != t.EOF:
+    token = a_lexer.get_token()
+    print(token)
+
+    while token.type != tokens.ENDMARKER:
+        token = a_lexer.get_token()
         print(token)
-        token = a_lexer.read()
-    print(Token(type=t.EOF))
 
 
 @cli.command(help='Procedure correctness test.')

@@ -4,7 +4,7 @@ from logging import getLogger
 from robin.lexer import Lexer
 from robin.util import log_def
 from robin import ast
-import parser_tokens as tokens
+from robin import parser_tokens as tokens
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
@@ -253,7 +253,8 @@ class Parser:
         """
         node = self.term_plus_minus()
 
-        while self.current_token.type in (tokens.EQUAL, tokens.LESS_THAN, tokens.LESS_EQUAL, tokens.GREAT_THAN, tokens.GREAT_EQUAL):
+        while self.current_token.type in (
+        tokens.EQUAL, tokens.LESS_THAN, tokens.LESS_EQUAL, tokens.GREAT_THAN, tokens.GREAT_EQUAL):
             # operator plus or minus
             op = self.current_token
             self.eat(self.current_token.type)
@@ -387,10 +388,11 @@ class Parser:
 
 def _main():
     import argparse
+    import os
     parser = argparse.ArgumentParser("Simple pascal interpreter.")
     parser.add_argument('file', help='the pascal file name')
     args = parser.parse_args()
-    text = open(file=args.file, encoding='utf-8').get_token()
+    text = open(file=os.path.join(__file__, args.file), encoding='utf-8').read()
     lexer = Lexer(text)
     parser = Parser(lexer)
     # parser

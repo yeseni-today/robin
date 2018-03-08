@@ -34,16 +34,17 @@ delimiter = set('''
 '''.split())
 
 # 关键字 33
-# False      class      finally    is         return
-# None       continue   for        lambda     try
-# True       def        from       nonlocal   while
-# and        del        global     not        with
-# as         elif       if         or         yield
-# assert     else       import     pass
-# break      except     in         raise
+
 
 keywords = frozenset('''
 if         else       elif
+False      class      finally    is         return
+None       continue   for        lambda     try
+True       def        from       nonlocal   while
+and        del        global     not        with
+as         elif       if         or         yield
+assert     else       import     pass
+break      except     in         raise
 '''.split())
 
 

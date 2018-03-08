@@ -322,7 +322,7 @@ class Lexer(Scaner):
 
 
 if __name__ == '__main__':
-    a = 'a\n    b\nc\rd\r\ne'
+    a = 'a\n    b\nc\rd\r\ne\n\n\nif    '
     import tokenize
 
     lexer = Lexer(a)
