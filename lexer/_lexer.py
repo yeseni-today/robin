@@ -143,7 +143,7 @@ class IndentScaner(Scaner):
     def match(self):
         return self.position == 0
 
-    @util.call_log('IndentScaner')
+    @util.log_def('IndentScaner')
     def scan(self):
         indent_num = self.indent_skip()
         while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
@@ -188,7 +188,7 @@ class EndScaner(Scaner):
         return self.current_char in ('\\', '\n', None)
 
     # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
-    @util.call_log('EndScaner')
+    @util.log_def('EndScaner')
     def scan(self):
         char = self.current_char
         if char is None:  # 全结束
@@ -209,7 +209,7 @@ class NumberScaner(Scaner):
     def match(self):
         return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
 
-    @util.call_log('NumberScaner')
+    @util.log_def('NumberScaner')
     def scan(self):
         number_dfa = automate.number_dfa
 
@@ -243,7 +243,7 @@ class NameScaner(Scaner):
     def match(self):
         return self.current_char and self.current_char.isidentifier()
 
-    @util.call_log('NameScaner')
+    @util.log_def('NameScaner')
     def scan(self):
         name = self.current_char
         self.next_char()
@@ -269,7 +269,7 @@ class StrScaner(Scaner):
                 return True
         return False
 
-    @util.call_log('StrScaner')
+    @util.log_def('StrScaner')
     def scan(self):
         string = ''
         while self.current_char not in '\'\"':  # 前缀
@@ -348,7 +348,7 @@ class OpDelimiterScaner(Scaner):
             return True
         return False
 
-    @util.call_log('OpDelimiterScaner')
+    @util.log_def('OpDelimiterScaner')
     def scan(self):
         op_delimiter = ''
         for i in range(self.len):
