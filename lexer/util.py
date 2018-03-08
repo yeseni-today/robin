@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import logging
 
+
 def is_ascii(char):
     # todo which is better
     return ord(char) < 128
@@ -12,7 +13,7 @@ def is_ascii(char):
     # return True
 
 
-def call_log(text):
+def log_def(text):
     def decorator(func):
         def wrapper(*args, **kw):
             logging.debug('call %s, %s():' % (func.__name__, text))
