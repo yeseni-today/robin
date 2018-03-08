@@ -35,8 +35,8 @@ def test_fstr():
         a = None
         b = 2
         return f'a:{a}, b:{b}'
-    dis.dis(fstring)
 
+    dis.dis(fstring)
 
 
 def test_logging():
@@ -46,7 +46,6 @@ def test_logging():
     logging.info('asdfsaf')
     logging.warning('asdfsaf')
     logging.error('asdfsaf')
-
 
 
 if __name__ == '__main__':

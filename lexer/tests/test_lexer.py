@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-from robin.lexer import Lexer
-from robin import tokens
 
 from lexer import Lexer, lf_lines, tokens
 import logging
-
-
-def test_lexer(string):
-    print(string)
 
 
 def test_lexer(string):
@@ -48,7 +41,7 @@ b
 
 
 def test_file():
-    # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\test\test_if.py').read())
+    # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\tests_pysrc\test_if.py').read())
     # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\robin\interpreter.py').read())
     test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\robin\parser.py').read())
 

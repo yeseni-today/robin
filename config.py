@@ -12,5 +12,5 @@ class Config:
 
 config = Config()
 config.debug = False
-config.test_dir = 'test'
+config.test_dir = 'tests_pysrc'
 config.result_name = 'result'

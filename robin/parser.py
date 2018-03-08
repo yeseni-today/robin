@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from functools import partial
 from logging import getLogger
-from robin.lexer import Lexer
+from lexer import Lexer
 from robin.util import log_def
 from robin import ast
 from robin import parser_tokens as tokens
