@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
 from robin import config
-from lexer import util
+from robin import util
 from robin import automate
 from lexer import tokens
 from lexer.tokens import Token, iskeyword
@@ -31,7 +31,7 @@ class Context(object):
         self.brackets_stack = []  # 处理隐式行连接 在() [] {}中
 
 
-class Scaner(ABC):
+class Scanner(ABC):
     def __init__(self, context):
         self.context = context
 
@@ -140,11 +140,11 @@ class Scaner(ABC):
         pass
 
 
-class IndentScaner(Scaner):
+class IndentScanner(Scanner):
     def match(self):
         return self.position == 0
 
-    @util.log_def('IndentScaner')
+    @util.log_def('IndentScanner')
     def scan(self):
         indent_num = self.indent_skip()
         while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
@@ -184,12 +184,12 @@ class IndentScaner(Scaner):
         self.error()  # IndentationError: unindent does not match any outer indentation level
 
 
-class EndScaner(Scaner):
+class EndScanner(Scanner):
     def match(self):
         return self.current_char in ('\\', '\n', None)
 
     # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
-    @util.log_def('EndScaner')
+    @util.log_def('EndScanner')
     def scan(self):
         char = self.current_char
         if char is None:  # 全结束
@@ -206,11 +206,11 @@ class EndScaner(Scaner):
             self.skip_whitespace()
 
 
-class NumberScaner(Scaner):
+class NumberScanner(Scanner):
     def match(self):
         return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
 
-    @util.log_def('NumberScaner')
+    @util.log_def('NumberScanner')
     def scan(self):
         number_dfa = automate.number_dfa
 
@@ -240,11 +240,11 @@ class NumberScaner(Scaner):
     #     return int(string)
 
 
-class NameScaner(Scaner):
+class NameScanner(Scanner):
     def match(self):
         return self.current_char and self.current_char.isidentifier()
 
-    @util.log_def('NameScaner')
+    @util.log_def('NameScanner')
     def scan(self):
         name = self.current_char
         self.next_char()
@@ -257,7 +257,7 @@ class NameScaner(Scaner):
         return self.make_token(tokens.ID, name)
 
 
-class StrScaner(Scaner):
+class StrScanner(Scanner):
     def match(self):
         head = self.current_char
         if head in '\'\"':
@@ -270,7 +270,7 @@ class StrScaner(Scaner):
                 return True
         return False
 
-    @util.log_def('StrScaner')
+    @util.log_def('StrScanner')
     def scan(self):
         string = ''
         while self.current_char not in '\'\"':  # 前缀
@@ -317,7 +317,7 @@ class StrScaner(Scaner):
             return 1
 
 
-class OpDelimiterScaner(Scaner):
+class OpDelimiterScanner(Scanner):
     def __init__(self, context):
         super().__init__(context)
         self.len = 0
@@ -349,7 +349,7 @@ class OpDelimiterScaner(Scaner):
             return True
         return False
 
-    @util.log_def('OpDelimiterScaner')
+    @util.log_def('OpDelimiterScanner')
     def scan(self):
         op_delimiter = ''
         for i in range(self.len):
@@ -362,7 +362,7 @@ class OpDelimiterScaner(Scaner):
             return self.make_token(tokens.DELIMITER, op_delimiter)
 
 
-class Lexer(Scaner):
+class Lexer(Scanner):
     def match(self):
         pass
 
@@ -371,32 +371,33 @@ class Lexer(Scaner):
 
     def __init__(self, text):
         super().__init__(Context(text))
-        self.indent_scaner = IndentScaner(self.context)
-        self.str_scaner = StrScaner(self.context)
-        self.name_scaner = NameScaner(self.context)
-        self.number_scaner = NumberScaner(self.context)
-        self.end_scaner = EndScaner(self.context)
-        self.op_delimiter_scaner = OpDelimiterScaner(self.context)
+        self.indent_scanner = IndentScanner(self.context)
+        self.str_scanner = StrScanner(self.context)
+        self.name_scanner = NameScanner(self.context)
+        self.number_scanner = NumberScanner(self.context)
+        self.end_scanner = EndScanner(self.context)
+        self.op_delimiter_scanner = OpDelimiterScanner(self.context)
 
     def get_token(self):
-        if self.indent_scaner.match():  # 行开始
-            token = self.indent_scaner.scan()
+        if self.indent_scanner.match():  # 行开始
+            token = self.indent_scanner.scan()
             if token:
                 return token
-        if self.end_scaner.match():  # 全结束 或 行结束
-            token = self.end_scaner.scan()
+        if self.end_scanner.match():  # 全结束 或 行结束
+            token = self.end_scanner.scan()
             if token:
                 return token
 
         self.skip_whitespace()  # 空白符
-        if self.str_scaner.match():  # 字符串  在标识符或关键字之前判断
-            return self.str_scaner.scan()
-        elif self.name_scaner.match():  # 标识符或关键字
-            return self.name_scaner.scan()
-        elif self.number_scaner.match():  # 数字
-            return self.number_scaner.scan()
-        elif self.op_delimiter_scaner.match():  # 操作符 分割符
-            return self.op_delimiter_scaner.scan()
+        if self.str_scanner.match():  # 字符串  在标识符或关键字之前判断
+            return self.str_scanner.scan()
+        elif self.name_scanner.match():  # 标识符或关键字
+            return self.name_scanner.scan()
+        elif self.number_scanner.match():  # 数字
+            return self.number_scanner.scan()
+        elif self.op_delimiter_scanner.match():  # 操作符 分割符
+            return self.op_delimiter_scanner.scan()
 
-        # indent_scaner 和 end_scaner 可能返回None   skip_whitespace没返回        就再次调用get_token()
+        # indent_scanner 和 end_scanner 可能返回None   skip_whitespace没返回        就再次调用get_token()
         return self.get_token()
+
