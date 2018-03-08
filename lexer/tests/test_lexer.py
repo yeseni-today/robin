@@ -48,10 +48,7 @@ def test_file():
 
 if __name__ == '__main__':
     # test_number()
-    test_name()
-    '''
-    a
-    '''
+    # test_name()
     # test_name()
     # test_lf_lines()
     # test_str()

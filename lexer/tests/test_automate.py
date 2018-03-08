@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from robin import automate
+from lexer import automate
 
 
 def test_automate(automate, cases):

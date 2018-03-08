@@ -3,10 +3,11 @@
 from abc import ABC, abstractmethod
 from robin import config
 from robin import util
-from robin import automate
+from lexer import util, automate
 from lexer import tokens
 from lexer.tokens import Token, iskeyword
 import logging
+from robin.util import log_def
 
 
 def lf_lines(text):
@@ -15,8 +16,8 @@ def lf_lines(text):
     for line in text.splitlines():
         lines.append(line + '\n')
 
-    logging.info(f'\nlines{lines}')
-    logging.info('\n'+text)
+    # logging.info(f'\nlines{lines}')
+    # logging.info('\n'+text)
     return lines
 
 
@@ -144,7 +145,7 @@ class IndentScanner(Scanner):
     def match(self):
         return self.position == 0
 
-    @util.log_def('IndentScanner')
+    @log_def('IndentScanner')
     def scan(self):
         indent_num = self.indent_skip()
         while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
@@ -189,7 +190,7 @@ class EndScanner(Scanner):
         return self.current_char in ('\\', '\n', None)
 
     # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
-    @util.log_def('EndScanner')
+    @log_def('EndScanner')
     def scan(self):
         char = self.current_char
         if char is None:  # 全结束
@@ -210,7 +211,7 @@ class NumberScanner(Scanner):
     def match(self):
         return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
 
-    @util.log_def('NumberScanner')
+    @log_def('NumberScanner')
     def scan(self):
         number_dfa = automate.number_dfa
 
@@ -244,7 +245,7 @@ class NameScanner(Scanner):
     def match(self):
         return self.current_char and self.current_char.isidentifier()
 
-    @util.log_def('NameScanner')
+    @log_def('NameScanner')
     def scan(self):
         name = self.current_char
         self.next_char()
@@ -270,7 +271,7 @@ class StrScanner(Scanner):
                 return True
         return False
 
-    @util.log_def('StrScanner')
+    @log_def('StrScanner')
     def scan(self):
         string = ''
         while self.current_char not in '\'\"':  # 前缀
@@ -349,7 +350,7 @@ class OpDelimiterScanner(Scanner):
             return True
         return False
 
-    @util.log_def('OpDelimiterScanner')
+    @log_def('OpDelimiterScanner')
     def scan(self):
         op_delimiter = ''
         for i in range(self.len):
@@ -400,4 +401,3 @@ class Lexer(Scanner):
 
         # indent_scanner 和 end_scanner 可能返回None   skip_whitespace没返回        就再次调用get_token()
         return self.get_token()
-
