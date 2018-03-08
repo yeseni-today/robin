@@ -4,7 +4,7 @@ import os
 import logging
 import click
 
-from config import config
+from robin import settings
 from robin.interpreter import *
 from lexer import Lexer
 from lexer import tokens
@@ -69,7 +69,7 @@ def lexer(file):
 
 @cli.command(help='Test python source.')
 def test_pysrc():
-    dir = config.test_dir
+    dir = settings.test_dir
     for each_file in os.listdir(dir):
         path = os.path.join(dir, each_file)
         logging.info(f'begin tests_pysrc {path}')
@@ -77,7 +77,7 @@ def test_pysrc():
         try:
             inter.intreperter()
             # get result from global scope
-            result = inter.get_global().get(config.result_name)
+            result = inter.get_global().get(settings.result_name)
         except Exception as e:
             print(f'{path} tests_pysrc failed. raise {e}')
             raise e
@@ -89,15 +89,16 @@ def test_pysrc():
 def test():
     # TODO
     from lexer import tests as lexer_tests
-    from robin import tests as robin_tests
+    # from robin import tests as robin_tests
 
-    tests_modules = [lexer_tests, robin_tests]
-
-    for module_tests in tests_modules:
-        mod_path = module_tests.__path__[0]
-        for file in os.listdir(mod_path):
-            if not file.startswith('test_'):
-                continue
+    # tests_modules = [lexer_tests, robin_tests]
+    #
+    # for module_tests in tests_modules:
+    #     mod_path = module_tests.__path__[0]
+    #     for file in os.listdir(mod_path):
+    #         if not file.startswith('test_'):
+    #             continue
+    pass
 
 
 def _main():

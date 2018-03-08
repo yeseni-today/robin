@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
-from robin import config
+from robin import settings
 from robin import util
 from lexer import util, automate
 from lexer import tokens
@@ -161,7 +161,7 @@ class IndentScanner(Scanner):
             if self.current_char == ' ':
                 indent_num += 1
             else:
-                indent_num += config.TABSIZE - indent_num % config.TABSIZE
+                indent_num += settings.TABSIZE - indent_num % settings.TABSIZE
             self.next_char()
         return indent_num
 
