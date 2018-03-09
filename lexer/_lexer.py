@@ -117,7 +117,7 @@ class Scanner(ABC):
         self.line = self.lines[self.line_no]
         self.current_char = self.line[self.position]
 
-    def make_token(self, type, value):
+    def make_token(self, type, value=None):
         return Token(type=type, value=value, line=self.line_no, column=self.position)  # todo offset  '\t'
 
     def skip_whitespace(self):
@@ -205,10 +205,10 @@ class EndScanner(Scanner):
     def scan(self):
         char = self.current_char
         if char is None:  # 全结束
-            return self.make_token(tokens.ENDMARKER, '')
+            return self.make_token(tokens.ENDMARKER)
 
         if char in '#\n' and len(self.brackets_stack) == 0:  # 逻辑行结束
-            token = self.make_token(tokens.NEWLINE, '')
+            token = self.make_token(tokens.NEWLINE)
             self.next_line()
             return token
 
@@ -265,7 +265,7 @@ class NameScanner(Scanner):
             self.next_char()
 
         if iskeyword(name):
-            return self.make_token(tokens.KEYWORDS, name)
+            return self.make_token(name)
         return self.make_token(tokens.ID, name)
 
 
@@ -344,7 +344,7 @@ class OpDelimiterScanner(Scanner):
         else:
             self.brackets_stack.pop()
 
-    @log_def()
+    @log_def(name='OpDelimiterScanner')
     def match(self):
         self.len = 0
         op_delimiter = self.current_char
@@ -381,10 +381,10 @@ class OpDelimiterScanner(Scanner):
             op_delimiter += self.current_char
             self.next_char()
         logging.debug(f'op_delimiter= "{op_delimiter}"  len={self.len}')
-        if op_delimiter in tokens.operator:
-            return self.make_token(tokens.OPERATOR, op_delimiter)
-        elif op_delimiter in tokens.delimiter:
-            return self.make_token(tokens.DELIMITER, op_delimiter)
+        if op_delimiter in tokens.operator & tokens.delimiter:
+            return self.make_token(op_delimiter)
+        else:
+            self.error()
 
 
 # @log_cls
@@ -395,7 +395,7 @@ class Lexer(Scanner):
     def scan(self):
         pass
 
-    def __init__(self, text):
+    def __init__(self, text: str):
         super().__init__(Context(text))
         self.indent_scanner = IndentScanner(self.context)
         self.str_scanner = StrScanner(self.context)
@@ -404,7 +404,7 @@ class Lexer(Scanner):
         self.end_scanner = EndScanner(self.context)
         self.op_delimiter_scanner = OpDelimiterScanner(self.context)
 
-    @log_def('Lexer')
+    @log_def(name='Lexer')
     def get_token(self):
         if self.indent_scanner.match():  # 行开始
             token = self.indent_scanner.scan()
@@ -429,28 +429,37 @@ class Lexer(Scanner):
         return self.get_token()
 
 
-class PeekTokenLexer(Lexer):
-
+class PeekTokenLexer(object):
     def __init__(self, text):
-        super(PeekTokenLexer, self).__init__(text)
-
-        token = self.get_token()
-        self.tokens = [token]
-
-        while token.type != tokens.ENDMARKER:
-            token = self.get_token()
-            self.tokens.append(token)
-
-        self.tokens.append(self.get_token())
+        self.lexer = Lexer(text)
         self.index = -1
-        print(self.tokens)
+        self.token_stream = []
+        self._stream_token()
+
+    def _stream_token(self):
+        token = self.lexer.get_token()
+        while token.type != tokens.ENDMARKER:
+            if token.type == tokens.DEDENT:
+                self._add_dedent(token)
+            else:
+                self.token_stream.append(token)
+            token = self.lexer.get_token()
+            logging.info(token)
+        self.token_stream.append(self.lexer.get_token())
+
+    def _add_dedent(self, token):
+        """根据DEDENT.value个数 拆成value个DEDENT"""
+        num = 0
+        while num != token.value:
+            num += 1
+            self.token_stream.append(Token(tokens.DEDENT, None, token.line, token.column))
 
     def next_token(self):
         self.index += 1
-        return self.tokens[self.index]
+        return self.token_stream[self.index]
 
     def peek_token(self, peek=1):
         index = self.index + peek
-        if index >= len(self.tokens):
-            return self.tokens[-1]
-        return self.tokens[index]
+        if index >= len(self.token_stream):
+            return self.token_stream[-1]
+        return self.token_stream[index]

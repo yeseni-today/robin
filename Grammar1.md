@@ -35,6 +35,7 @@ stmt: simple_stmt | compound_stmt
     compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated | async_stmt
         if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ['else' ':' suite]
             test: or_test ['if' or_test 'else' test] | lambdef
+
                 or_test: and_test ('or' and_test)*
                     and_test: not_test ('and' not_test)*
                         not_test: 'not' not_test | comparison
@@ -55,6 +56,7 @@ stmt: simple_stmt | compound_stmt
         while_stmt: 'while' test ':' suite ['else' ':' suite]
         for_stmt: 'for' exprlist 'in' testlist ':' suite ['else' ':' suite]
             exprlist: (expr|star_expr) (',' (expr|star_expr))* [',']
+
                 expr: xor_expr ('|' xor_expr)*
                     xor_expr: and_expr ('^' and_expr)*
                         and_expr: shift_expr ('&' shift_expr)*
@@ -63,6 +65,7 @@ stmt: simple_stmt | compound_stmt
                                     term: factor (('*'|'@'|'/'|'%'|'//') factor)*
                                         factor: ('+'|'-'|'~') factor | power
                                             power: atom_expr ['**' factor]
+
                                                 atom_expr: [AWAIT] atom trailer*
                                                     atom: ('(' [yield_expr|testlist_comp] ')' |
                                                            '[' [testlist_comp] ']' |

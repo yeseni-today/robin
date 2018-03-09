@@ -2,18 +2,17 @@
 # -*- coding: utf-8 -*-
 import keyword
 from collections import namedtuple
-from robin.util import CaseInsensitiveUserDict
 
-EOF = ENDMARKER = 'endmarker'
+ENDMARKER = 'endmarker'
 NEWLINE = 'newline'
 INDENT = 'indent'  # value为缩进格数
-DEDENT = 'dedent'  # value为DEDENT的个数 todo DEDENT的个数
+DEDENT = 'dedent'  # value为DEDENT的个数  stream时分成value个DEDENT
 
 # NAME = 'name'
 ID = 'id'
 KEYWORDS = 'keywords'
 
-LITERALS = 'literals'
+# LITERALS = 'literals'
 NUMBER = 'number'
 STRING = 'string'
 BYTES = 'bytes'
@@ -23,20 +22,18 @@ DELIMITER = 'delimiter'
 
 # ERRORTOKEN = 'errortoken'
 
-_operator_list = '''
+operator = set('''
     +       -       *       **      /       //      %
     <<      >>      &       |       ^       ~
     <       >       <=      >=      ==      !=
-'''.split()
-operator = CaseInsensitiveUserDict({keyword: keyword for keyword in _operator_list})
+'''.split())
 
-_delimiter_list = '''
+delimiter = set('''
     (       )       [       ]       {       }
     ,       :       .       ;       @       =       ->
     +=      -=      *=      /=      //=     %=
     &=      |=      ^=      >>=     <<=     **=
-'''.split()
-delimiter = CaseInsensitiveUserDict({keyword: keyword for keyword in _delimiter_list})
+'''.split())
 
 # 关键字 33
 # False      class      finally    is         return
@@ -47,18 +44,15 @@ delimiter = CaseInsensitiveUserDict({keyword: keyword for keyword in _delimiter_
 # assert     else       import     pass
 # break      except     in         raise
 
-# keywords = frozenset()
-_keywords_list = '''
-if          else        elif       
-False       True        None
-class       def         return      pass
-from        import
-raise
-for         in          while
-is          not
-del
-'''.split()
-keywords = CaseInsensitiveUserDict({keyword: keyword for keyword in _keywords_list})
+keywords = frozenset('''
+False      class      finally    is         return
+None       continue   for        lambda     try
+True       def        from       nonlocal   while
+and        del        global     not        with
+as         elif       if         or         yield
+assert     else       import     pass
+break      except     in         raise
+'''.split())
 
 
 def iskeyword(string):
