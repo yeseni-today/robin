@@ -50,9 +50,17 @@ def test_logging():
 
 if __name__ == '__main__':
     import tokenize, token
+
     # a = 'a\n    b\nc\rd\r\ne'
     # print(a.splitlines(keepends=True))
     # test_fstr()
     # test_func()
     #  test_logging()
+    a = 1
+    while a <= 4:
+        print(a)
+        a += 1
+    else:
+        print('else', a)
+
     print(type(NotImplemented))

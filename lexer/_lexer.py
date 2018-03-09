@@ -142,16 +142,22 @@ class Scanner(ABC):
 
 
 class IndentScanner(Scanner):
+    @log_def()
     def match(self):
-        return self.position == 0
+        if self.position != 0:
+            return False
+        if len(self.brackets_stack) != 0:  # 行连接
+            return False
+        if self.line_no and len(self.lines[self.line_no - 1]) > 1 and self.lines[self.line_no - 1][-2] == '\\':  # 行连接
+            return False
+        return True
 
-    @log_def('IndentScanner')
+    @log_def()
     def scan(self):
         indent_num = self.indent_skip()
         while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
             self.next_line()
             indent_num = self.indent_skip()
-
         return self.indent_judge(indent_num)
 
     def indent_skip(self):
@@ -186,17 +192,18 @@ class IndentScanner(Scanner):
 
 
 class EndScanner(Scanner):
+    @log_def()
     def match(self):
-        return self.current_char in ('\\', '\n', None)
+        return self.current_char in ('#', '\\', '\n', None)
 
     # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
-    @log_def('EndScanner')
+    @log_def()
     def scan(self):
         char = self.current_char
         if char is None:  # 全结束
             return self.make_token(tokens.ENDMARKER, '')
 
-        if char == '\n' and len(self.brackets_stack) == 0:  # 逻辑行结束
+        if char in '#\n' and len(self.brackets_stack) == 0:  # 逻辑行结束
             token = self.make_token(tokens.NEWLINE, '')
             self.next_line()
             return token
@@ -208,10 +215,11 @@ class EndScanner(Scanner):
 
 
 class NumberScanner(Scanner):
+    @log_def()
     def match(self):
         return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
 
-    @log_def('NumberScanner')
+    @log_def()
     def scan(self):
         number_dfa = automate.number_dfa
 
@@ -242,10 +250,11 @@ class NumberScanner(Scanner):
 
 
 class NameScanner(Scanner):
+    @log_def()
     def match(self):
         return self.current_char and self.current_char.isidentifier()
 
-    @log_def('NameScanner')
+    @log_def()
     def scan(self):
         name = self.current_char
         self.next_char()
@@ -259,6 +268,7 @@ class NameScanner(Scanner):
 
 
 class StrScanner(Scanner):
+    @log_def()
     def match(self):
         head = self.current_char
         if head in '\'\"':
@@ -271,7 +281,7 @@ class StrScanner(Scanner):
                 return True
         return False
 
-    @log_def('StrScanner')
+    @log_def()
     def scan(self):
         string = ''
         while self.current_char not in '\'\"':  # 前缀
@@ -322,13 +332,26 @@ class OpDelimiterScanner(Scanner):
     def __init__(self, context):
         super().__init__(context)
         self.len = 0
+        self.brackets_dict = {'(': ')', '[': ']', '{': '}'}
 
+    def deal_brackets(self, bracket):
+        logging.debug(f'brackets_stack: {self.brackets_stack}, cur_char:{self.current_char}')
+        if bracket in '([{':
+            self.brackets_stack.append(bracket)
+        elif len(self.brackets_stack) == 0 or self.brackets_dict[self.brackets_stack[-1]] != bracket:
+            self.error()
+        else:
+            self.brackets_stack.pop()
+
+    @log_def()
     def match(self):
         self.len = 0
         op_delimiter = self.current_char
         if op_delimiter is None:
             return False
         if op_delimiter in '()[]{},:.;@~':
+            if op_delimiter in '()[]{}':
+                self.deal_brackets(op_delimiter)
             self.len = 1
             return True
         elif op_delimiter in '+-*/%&|^<>=':

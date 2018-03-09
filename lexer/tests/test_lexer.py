@@ -40,10 +40,18 @@ b
      ''')
 
 
+file = r'C:\Users\22340\PycharmProjects\robin\lexer\_lexer.py'
+
+
 def test_file():
+    import timeit
+    t = timeit.timeit('test_lexer(open(file,encoding="utf-8").read())', 'from __main__ import file,test_lexer',
+                      number=1)
+    print('time:', t)
+    # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\lexer\_lexer.py',encoding='utf-8').read())
     # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\tests_pysrc\test_if.py').read())
     # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\robin\interpreter.py').read())
-    test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\robin\parser.py').read())
+    # test_lexer(open(r'C:\Users\22340\PycharmProjects\robin\robin\parser.py').read())
 
 
 if __name__ == '__main__':
