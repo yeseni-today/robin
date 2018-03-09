@@ -62,9 +62,20 @@ def lexer(file):
     token = a_lexer.get_token()
     print(token)
 
-    while token.type != tokens.ENDMARKER:
+    while token is not None and token.type != tokens.ENDMARKER:
         token = a_lexer.get_token()
         print(token)
+    print(token)
+
+
+@cli.command(help='Using parser parse Python file to AST')
+@click.argument('file')
+@click.option('-d', '--debug', is_flag=True, callback=set_debug,
+              expose_value=False, is_eager=True, help='Show the debug message.')
+def parser(file):
+    a_parser = FileParser(file)
+    root = a_parser.parse()
+    print('>' * 10, root)
 
 
 @cli.command(help='Test python source.')

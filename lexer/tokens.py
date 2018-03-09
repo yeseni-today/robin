@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 import keyword
 from collections import namedtuple
+from robin.util import CaseInsensitiveUserDict
 
-ENDMARKER = 'endmarker'
+EOF = ENDMARKER = 'endmarker'
 NEWLINE = 'newline'
 INDENT = 'indent'  # value为缩进格数
 DEDENT = 'dedent'  # value为DEDENT的个数 todo DEDENT的个数
@@ -22,18 +23,20 @@ DELIMITER = 'delimiter'
 
 # ERRORTOKEN = 'errortoken'
 
-operator = set('''
+_operator_list = '''
     +       -       *       **      /       //      %
     <<      >>      &       |       ^       ~
     <       >       <=      >=      ==      !=
-'''.split())
+'''.split()
+operator = CaseInsensitiveUserDict({keyword: keyword for keyword in _operator_list})
 
-delimiter = set('''
+_delimiter_list = '''
     (       )       [       ]       {       }
     ,       :       .       ;       @       =       ->
     +=      -=      *=      /=      //=     %=
     &=      |=      ^=      >>=     <<=     **=
-'''.split())
+'''.split()
+delimiter = CaseInsensitiveUserDict({keyword: keyword for keyword in _delimiter_list})
 
 # 关键字 33
 # False      class      finally    is         return
@@ -44,7 +47,8 @@ delimiter = set('''
 # assert     else       import     pass
 # break      except     in         raise
 
-keywords = frozenset('''
+# keywords = frozenset()
+_keywords_list = '''
 if          else        elif       
 False       True        None
 class       def         return      pass
@@ -53,7 +57,8 @@ raise
 for         in          while
 is          not
 del
-'''.split())
+'''.split()
+keywords = CaseInsensitiveUserDict({keyword: keyword for keyword in _keywords_list})
 
 
 def iskeyword(string):
