@@ -7,7 +7,7 @@ from lexer import util, automate
 from lexer import tokens
 from lexer.tokens import Token, iskeyword
 import logging
-from robin.util import log_def
+from robin.util import log_def, log_cls
 
 
 def lf_lines(text):
@@ -363,6 +363,7 @@ class OpDelimiterScanner(Scanner):
             return self.make_token(tokens.DELIMITER, op_delimiter)
 
 
+@log_cls
 class Lexer(Scanner):
     def match(self):
         pass

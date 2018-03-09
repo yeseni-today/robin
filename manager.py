@@ -80,7 +80,7 @@ def parser(file):
 
 @cli.command(help='Test python source.')
 def test_pysrc():
-    dir = settings.test_dir
+    dir = settings.TESTS_PY_SOURCE
     for each_file in os.listdir(dir):
         path = os.path.join(dir, each_file)
         logging.info(f'begin tests_pysrc {path}')
@@ -88,7 +88,7 @@ def test_pysrc():
         try:
             inter.intreperter()
             # get result from global scope
-            result = inter.get_global().get(settings.result_name)
+            result = inter.get_global().get(settings.TESTS_PY_SOURCE_RESULT_NAME)
         except Exception as e:
             print(f'{path} tests_pysrc failed. raise {e}')
             raise e

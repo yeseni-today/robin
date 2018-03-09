@@ -3,11 +3,11 @@
 import logging
 
 logging.basicConfig(
-    format='%(levelname)-7s %(filename)-17s %(lineno)-4d : %(message)s',
+    format='%(levelname)-7s %(name)-17s %(lineno)-4d : %(message)s',
     level=logging.INFO)
 
 TABSIZE = 8
 
-debug = False
-test_dir = 'tests_pysrc'
-result_name = 'result'
+DEBUG = False
+TESTS_PY_SOURCE = 'tests_pysrc'
+TESTS_PY_SOURCE_RESULT_NAME = 'result'
