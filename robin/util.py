@@ -20,6 +20,7 @@ def log_def(name):
             rv = func(*args, **kw)
             logger.info(_level * _step + '<-- %s(), rv: %r, args: %r, kw:%r.', func.__name__, rv, args, kw)
             _level -= 1
+            return rv
 
         return wrapper
 
@@ -29,7 +30,6 @@ def log_def(name):
 def log_cls(cls):
     class NewCls(object):
         def __init__(self, *args, **kwargs):
-            print('in NewCls __init__', args, kwargs)
             self.oInstance = cls(*args, **kwargs)
 
         def __getattribute__(self, s):
@@ -58,20 +58,24 @@ class UserDict(dict):
 
     def __getattr__(self, item):
         try:
-            return super(UserDict, self).__getattr__(item)
+            return super(UserDict, self).__getattribute__(item)
         except AttributeError:
-            return super(UserDict, self).__getitem__(item)
+            return self.__getitem__(item)
 
     def __setattr__(self, item, val):
-        super(UserDict, self).__setitem__(item, val)
+        self.__setitem__(item, val)
 
     def __delattr__(self, item):
-        return super(UserDict, self).__delitem__(item)
+        return self.__delitem__(item)
 
 
 class CaseInsensitiveUserDict(UserDict):
+
     def __setitem__(self, key, value):
         super(CaseInsensitiveUserDict, self).__setitem__(key.lower(), value)
 
     def __getitem__(self, key):
-        return super(CaseInsensitiveUserDict, self).__getitem__(key.lower())
+        try:
+            return super(CaseInsensitiveUserDict, self).__getitem__(key.lower())
+        except KeyError:
+            return super(CaseInsensitiveUserDict, self).__getitem__(key)

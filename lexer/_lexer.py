@@ -36,6 +36,11 @@ class Scanner(ABC):
     def __init__(self, context):
         self.context = context
 
+    def __str__(self):
+        return '<%s>' % self.__class__.__name__
+
+    __repr__ = __str__
+
     @property
     def lines(self):
         return self.context.lines
@@ -363,7 +368,7 @@ class OpDelimiterScanner(Scanner):
             return self.make_token(tokens.DELIMITER, op_delimiter)
 
 
-@log_cls
+# @log_cls
 class Lexer(Scanner):
     def match(self):
         pass
@@ -380,6 +385,7 @@ class Lexer(Scanner):
         self.end_scanner = EndScanner(self.context)
         self.op_delimiter_scanner = OpDelimiterScanner(self.context)
 
+    @log_def('Lexer')
     def get_token(self):
         if self.indent_scanner.match():  # 行开始
             token = self.indent_scanner.scan()
@@ -389,7 +395,6 @@ class Lexer(Scanner):
             token = self.end_scanner.scan()
             if token:
                 return token
-
         self.skip_whitespace()  # 空白符
         if self.str_scanner.match():  # 字符串  在标识符或关键字之前判断
             return self.str_scanner.scan()
@@ -402,3 +407,30 @@ class Lexer(Scanner):
 
         # indent_scanner 和 end_scanner 可能返回None   skip_whitespace没返回        就再次调用get_token()
         return self.get_token()
+
+
+class PeekTokenLexer(Lexer):
+
+    def __init__(self, text):
+        super(PeekTokenLexer, self).__init__(text)
+
+        token = self.get_token()
+        self.tokens = [token]
+
+        while token.type != tokens.ENDMARKER:
+            token = self.get_token()
+            self.tokens.append(token)
+
+        self.tokens.append(self.get_token())
+        self.index = -1
+        print(self.tokens)
+
+    def next_token(self):
+        self.index += 1
+        return self.tokens[self.index]
+
+    def peek_token(self, peek=1):
+        index = self.index + peek
+        if index >= len(self.tokens):
+            return self.tokens[-1]
+        return self.tokens[index]
