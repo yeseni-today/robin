@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from functools import partial
-from logging import getLogger
+import logging
 from lexer import Lexer
 from robin.util import log_def
 from robin import ast
@@ -9,8 +9,8 @@ from robin import parser_tokens as tokens
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
 
-log = getLogger('Parser')
-log_def = partial(log_def, log=log)
+log_def = partial(log_def, name='parser')
+logger = logging.getLogger('parser')
 
 
 ###############################################################################
@@ -44,7 +44,7 @@ class Parser:
             <program> -> <block>
         :return:
         """
-        log.info('parsing program...')
+        logger.info('parsing program...')
         return ast.Program(self.block())
 
     @log_def
@@ -254,7 +254,7 @@ class Parser:
         node = self.term_plus_minus()
 
         while self.current_token.type in (
-        tokens.EQUAL, tokens.LESS_THAN, tokens.LESS_EQUAL, tokens.GREAT_THAN, tokens.GREAT_EQUAL):
+                tokens.EQUAL, tokens.LESS_THAN, tokens.LESS_EQUAL, tokens.GREAT_THAN, tokens.GREAT_EQUAL):
             # operator plus or minus
             op = self.current_token
             self.eat(self.current_token.type)
