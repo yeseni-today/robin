@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 from functools import partial
-from logging import getLogger
-from lexer import Lexer
+import logging
+from lexer import PeekTokenLexer
 from robin.util import log_def
 from robin import ast
-from robin import parser_tokens as tokens
+from lexer import tokens
+from robin.settings import INDENT_LENGTH
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
 
-log = getLogger('Parser')
-log_def = partial(log_def, log=log)
+log_def = log_def(name='parser')
+logger = logging.getLogger('parser')
 
 
 ###############################################################################
@@ -20,22 +21,26 @@ log_def = partial(log_def, log=log)
 ###############################################################################
 
 class Parser:
-    def __init__(self, lexer: Lexer):
+    def __init__(self, lexer: PeekTokenLexer):
         self.lexer = lexer
         self.indent = 0
-        self.current_token = lexer.get_token()
+        self.current_token = lexer.next_token()
 
-    def error(self, need=None):
-        msg = 'Invalid syntax. Unknown identity %r. ' % self.current_token
-        if need:
-            msg += 'Need Token %r' % need
+    def error(self, type=None, value=None):
+        msg = 'Invalid syntax. Unknown identity %s. ' % (self.current_token,)
+        if type:
+            msg += 'Need Token %r, %r' % (type, value)
         raise Exception(msg)
 
-    def eat(self, token_type):
-        if self.current_token.type == token_type:
-            self.current_token = self.lexer.get_token()
+    def eat(self, type, value=''):
+
+        if self.current_token.type == type:
+            if (value and self.current_token.value == value) or not value:
+                self.current_token = self.lexer.next_token()
+                while self.current_token.type == tokens.DEDENT:
+                    self.current_token = self.lexer.next_token()
         else:
-            self.error(token_type)
+            self.error(type, value)
 
     @log_def
     def program(self):
@@ -44,26 +49,26 @@ class Parser:
             <program> -> <block>
         :return:
         """
-        log.info('parsing program...')
         return ast.Program(self.block())
 
     @log_def
     def function_def(self):
         """
         Function definition.
-            <function_def> -> DEF <variable> <argument_list> COLON LINE_END INDENT <block>
+            <function_def> -> DEF <variable> <argument_list> COLON NEWLINE INDENT <block>
         :return:
         """
         # todo using <params_list> replace the <argument_list>
         token = self.current_token
-        self.eat(tokens.DEF)
+        self.eat(tokens.KEYWORDS, tokens.keywords.DEF)
         name = self.variable()
         params = self.argument_list()
-        self.eat(tokens.COLON)
-        self.eat(tokens.LINE_END)
+        self.eat(tokens.DELIMITER, tokens.delimiter[':'])
+        self.eat(tokens.NEWLINE)
         self.indent += 1
         block = self.block()
         self.indent -= 1
+
         return ast.FunctionDef(name=name, params=params, block=block)
 
     @log_def
@@ -74,7 +79,7 @@ class Parser:
         :return:
         """
         result = []
-        while self.check_indent() and self.current_token.type != tokens.EOF:
+        while self.check_indent() and self.current_token.value != tokens.EOF:
             self.eat_indent()
             result.append(self.statement())
         return ast.Block(children=result)
@@ -82,9 +87,9 @@ class Parser:
     @log_def
     def statement(self):
         """
-        A statementokens.
+        A statement tokens.
              <statement> -> <assign_statement>
-                         -> <function_call> LINE_END
+                         -> <function_call> NEWLINE
                          -> <empty>
                          -> <if_statement>
                          -> <while_statement>
@@ -96,18 +101,18 @@ class Parser:
         if self.current_token.type == tokens.ID:
             if self.lexer.peek_token() is None:
                 statement = self.empty()
-            elif self.lexer.peek_token().type == tokens.LPAREN:
+            elif self.lexer.peek_token().value == tokens.delimiter['(']:
                 statement = self.function_call()
-                self.eat(tokens.LINE_END)
-            elif self.lexer.peek_token().type == tokens.ASSIGN:
+                self.eat(tokens.NEWLINE)
+            elif self.lexer.peek_token().value == tokens.delimiter['=']:
                 statement = self.assign_statement()
             else:
                 statement = self.empty()
-        elif self.current_token.type == tokens.IF:
+        elif self.current_token.value == tokens.keywords.IF:
             statement = self.if_statement()
-        elif self.current_token.type == tokens.WHILE:
+        elif self.current_token.value == tokens.keywords.WHILE:
             statement = self.while_statement()
-        elif self.current_token.type == tokens.DEF:
+        elif self.current_token.value == tokens.keywords.DEF:
             statement = self.function_def()
         else:
             statement = self.empty()
@@ -128,32 +133,32 @@ class Parser:
     @log_def
     def argument_list(self) -> list:
         """
-        Argument listokens.
+        Arguments list.
             <argument_list> -> LPAREN (<expr> (COMMA <expr>)*)? RPAREN
         :return:
         """
         args = []
-        self.eat(tokens.LPAREN)
-        if self.current_token.type != tokens.RPAREN:
+        self.eat(tokens.DELIMITER, tokens.delimiter['('])
+        if self.current_token.value != tokens.delimiter[')']:
             args.append(self.expr())
-            while self.current_token.type == tokens.COMMA:
-                self.eat(tokens.COMMA)
+            while self.current_token.value == tokens.delimiter[',']:
+                self.eat(tokens.DELIMITER, tokens.delimiter[','])
                 args.append(self.expr())
-        self.eat(tokens.RPAREN)
+        self.eat(tokens.DELIMITER, tokens.delimiter[')'])
         return args
 
     @log_def
     def while_statement(self):
         """
         `while` statement:
-            <while_statement> -> WHILE <epxr> COLON LINE_END INDENT <block>
+            <while_statement> -> WHILE <expression> COLON NEWLINE INDENT <block> DEDENT
         :return:
         """
         token = self.current_token
-        self.eat(tokens.WHILE)
+        self.eat(tokens.KEYWORDS, tokens.keywords.WHILE)
         condition = self.expr()
-        self.eat(tokens.COLON)
-        self.eat(tokens.LINE_END)
+        self.eat(tokens.DELIMITER, tokens.delimiter[':'])
+        self.eat(tokens.NEWLINE)
         self.indent += 1
         right_block = self.block()
         self.indent -= 1
@@ -164,15 +169,15 @@ class Parser:
     def if_statement(self):
         """
         `if` statement:
-            <if_statement> -> IF <expr> COLON LINE_END INDENT <block> <elif_statement>
+            <if_statement> -> IF <expr> COLON NEWLINE INDENT <block> <elif_statement>
 
         :return:
         """
         token = self.current_token
-        self.eat(tokens.IF)
+        self.eat(tokens.KEYWORDS, tokens.keywords.IF)
         condition = self.expr()
-        self.eat(tokens.COLON)
-        self.eat(tokens.LINE_END)
+        self.eat(tokens.DELIMITER, tokens.delimiter[':'])
+        self.eat(tokens.NEWLINE)
 
         self.indent += 1
         right_block = self.block()
@@ -185,26 +190,26 @@ class Parser:
     def elif_statement(self):
         """
         `elif` statement:
-            <elif_statement> -> ELIF <expr> COLON LINE_END INDENT <block> <elif_statement>*
-                             -> ELSE COLON LINE_END INDENT <block>
+            <elif_statement> -> ELIF <expr> COLON NEWLINE INDENT <block> <elif_statement>*
+                             -> ELSE COLON NEWLINE INDENT <block>
                              -> <empty>
         :return:
         """
-        if self.current_token.type == tokens.ELIF:
+        if self.current_token.value == tokens.keywords.ELIF:
             token = self.current_token
-            self.eat(tokens.ELIF)
+            self.eat(tokens.KEYWORDS, tokens.keywords.ELIF)
             condition = self.expr()
-            self.eat(tokens.COLON)
-            self.eat(tokens.LINE_END)
+            self.eat(tokens.DELIMITER, tokens.delimiter[':'])
+            self.eat(tokens.NEWLINE)
             self.indent += 1
             right_block = self.block()
             self.indent -= 1
             wrong_block = self.elif_statement()
             return ast.If(condition, token, right_block, wrong_block)
-        elif self.current_token.type == tokens.ELSE:
-            self.eat(tokens.ELSE)
-            self.eat(tokens.COLON)
-            self.eat(tokens.LINE_END)
+        elif self.current_token.value == tokens.keywords.ELSE:
+            self.eat(tokens.KEYWORDS, tokens.keywords.ELSE)
+            self.eat(tokens.DELIMITER, tokens.delimiter[':'])
+            self.eat(tokens.NEWLINE)
 
             self.indent += 1
             block = self.block()
@@ -215,22 +220,22 @@ class Parser:
 
     @log_def
     def empty(self):
-        if self.current_token.type == tokens.LINE_END:
-            self.eat(tokens.LINE_END)
+        if self.current_token.type == tokens.NEWLINE:
+            self.eat(tokens.NEWLINE)
         return ast.EmptyOp()
 
     @log_def
     def assign_statement(self):
         """
         Assign statementokens.
-            <assign_statement> -> <variable> ASSIGN <expr> LINE_END
+            <assign_statement> -> <variable> ASSIGN <expr> NEWLINE
         :return:
         """
         left = self.variable()
         token = self.current_token
-        self.eat(tokens.ASSIGN)
+        self.eat(tokens.DELIMITER, tokens.delimiter['='])
         right = self.expr()
-        self.eat(tokens.LINE_END)
+        self.eat(tokens.NEWLINE)
         return ast.Assign(left=left, token=token, right=right)
 
     @log_def
@@ -241,7 +246,7 @@ class Parser:
         :return:
         """
         vartoken = self.current_token
-        self.eat(tokens.ID)
+        self.eat(tokens.ID, value=vartoken.value)
         return ast.Var(token=vartoken)
 
     @log_def
@@ -253,11 +258,10 @@ class Parser:
         """
         node = self.term_plus_minus()
 
-        while self.current_token.type in (
-        tokens.EQUAL, tokens.LESS_THAN, tokens.LESS_EQUAL, tokens.GREAT_THAN, tokens.GREAT_EQUAL):
+        while self.current_token.value in tokens.operator:
             # operator plus or minus
             op = self.current_token
-            self.eat(self.current_token.type)
+            self.eat(tokens.OPERATOR, self.current_token.value)
             right = self.term_plus_minus()
             node = ast.Op(left=node, op=op, right=right)
 
@@ -272,18 +276,14 @@ class Parser:
         """
         node = self.term_mul_div()
 
-        while self.current_token.type in (tokens.MINUS, tokens.PLUS):
+        while self.current_token.value in (tokens.operator['-'], tokens.operator['+']):
             # operator plus or minus
             op = self.current_token
-            self.eat(self.current_token.type)
+            self.eat(tokens.OPERATOR, self.current_token.value)
             right = self.term_mul_div()
             node = ast.Op(left=node, op=op, right=right)
 
         return node
-
-    def skip_space(self):
-        while self.current_token.type == tokens.SPACE:
-            self.eat(tokens.SPACE)
 
     @log_def
     def term_mul_div(self):
@@ -294,9 +294,9 @@ class Parser:
         """
         node = self.factor()
 
-        while self.current_token.type in (tokens.MUL, tokens.DIV):
+        while self.current_token.value in (tokens.operator['*'], tokens.operator['/']):
             op = self.current_token
-            self.eat(self.current_token.type)
+            self.eat(tokens.OPERATOR, self.current_token.value)
             right = self.factor()
 
             node = ast.Op(left=node, op=op, right=right)
@@ -312,47 +312,50 @@ class Parser:
                      -> <variable>
                      -> LPAREN <expr> RPAREN
                      -> <function_call>
-                     -> CONST_BOOL
+                     -> tokens.keywords['True']
                      -> CONST_REGULAR_STR
         :return:
         """
 
-        if self.current_token.type in (tokens.PLUS, tokens.MINUS):
+        if self.current_token.value in (tokens.operator['+'], tokens.operator['-']):
             op = self.current_token
-            if self.current_token.type == tokens.PLUS:
-                self.eat(tokens.PLUS)
+            if self.current_token.value == tokens.operator['+']:
+                self.eat(tokens.OPERATOR, tokens.operator['+'])
                 return ast.UnaryOp(op=op, expr=self.factor())
-            elif self.current_token.type == tokens.MINUS:
-                self.eat(tokens.MINUS)
+            elif self.current_token.value == tokens.operator['-']:
+                self.eat(tokens.OPERATOR, tokens.operator['-'])
                 return ast.UnaryOp(op=op, expr=self.factor())
 
-        elif self.current_token.type in (tokens.CONST_INTEGER, tokens.CONST_REAL):
+        elif self.current_token.type == tokens.NUMBER:
             integer = self.current_token
             self.eat(self.current_token.type)
             return ast.Num(integer)
 
         elif self.current_token.type == tokens.ID:
-            if self.lexer.peek_token().type == tokens.LPAREN:
+            if self.lexer.peek_token().value == tokens.delimiter['(']:
                 return self.function_call()
             else:
                 return self.variable()
-        elif self.current_token.type == tokens.LPAREN:
-            self.eat(tokens.LPAREN)
+        elif self.current_token.value == tokens.delimiter['(']:
+            self.eat(tokens.DELIMITER, tokens.delimiter['('])
             expr = self.expr()
-            self.eat(tokens.RPAREN)
+            self.eat(tokens.DELIMITER, tokens.delimiter[')'])
             return expr
-        elif self.current_token.type == tokens.CONST_BOOL:
+        elif self.current_token.value in (tokens.keywords['True'], tokens.keywords['False']):
             booltoken = self.current_token
-            self.eat(tokens.CONST_BOOL)
+            print(booltoken)
+            self.eat(tokens.KEYWORDS, self.current_token.value)
             return ast.Bool(booltoken)
-        elif self.current_token.type == tokens.CONST_STR:
+        elif self.current_token.type == tokens.STRING:
             strtoken = self.current_token
-            self.eat(tokens.CONST_STR)
+            self.eat(tokens.STRING, self.current_token.value)
             return ast.RegularStr(strtoken)
 
+    @log_def
     def parse(self):
+        print('begin parse')
         node = self.program()
-        # if self.current_token.type != EOF:
+        # if self.current_token.value != EOF:
         #     self.error(need=EOF)
         return node
 
@@ -363,24 +366,18 @@ class Parser:
             return True
         if self.current_token.type != tokens.INDENT:
             return False
-        count = 0
-        seek = 0
-        while self.lexer.peek_token(seek).type == tokens.INDENT:
-            count += 1
-            seek += 1
-        if count == indent - 1:
-            return True
-        else:
+
+        if self.indent * INDENT_LENGTH != self.current_token.value:
             return False
+        return True
 
     @log_def
     def eat_indent(self):
         indent = self.indent
-        while indent != 0 and self.current_token.type == tokens.INDENT:
-            self.eat(tokens.INDENT)
-            indent -= 1
-        if indent:
-            raise IndentationError()
+        if self.current_token.type == tokens.INDENT:
+            if indent * INDENT_LENGTH != self.current_token.value:
+                raise IndentationError()
+            self.eat(tokens.INDENT, value=indent * INDENT_LENGTH)
 
     def __repr__(self):
         return '<%s>' % self.__class__.__name__

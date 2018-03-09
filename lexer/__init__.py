@@ -1,1 +1,1 @@
-from ._lexer import Lexer, lf_lines
+from ._lexer import PeekTokenLexer, lf_lines

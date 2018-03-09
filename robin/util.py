@@ -1,31 +1,81 @@
 #!/usr/bin/env python3
 import logging
+from functools import wraps
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
-
-# _log = logging.getLogger('Util')
 
 _level = -1
 _step = '    '
 
 
-def log_def(name=None, log=None, *args, **kwargs):
+def log_def(name):
     def decorator(func):
-
+        @wraps(func)
         def wrapper(*args, **kw):
-            if name:
-                logger = logging.getLogger(name=name)
-            else:
-                logger = logging.getLogger('Util')
+            logger = logging.getLogger(name)
             global _level
             _level += 1
-            logger.info(_level * _step + '⭕️ %s(), args: %r, kw: %r. ', func.__name__, args, kw)
+            logger.info(_level * _step + '-->️ %s(), args: %r, kw: %r. ', func.__name__, args, kw)
             rv = func(*args, **kw)
-            logger.info(_level * _step + '✅ %s(), return: %r, args: %r, kw:%r.', func.__name__, rv, args, kw)
+            logger.info(_level * _step + '<-- %s(), rv: %r, args: %r, kw:%r.', func.__name__, rv, args, kw)
             _level -= 1
             return rv
 
         return wrapper
 
     return decorator
+
+
+def log_cls(cls):
+    class NewCls(object):
+        def __init__(self, *args, **kwargs):
+            self.oInstance = cls(*args, **kwargs)
+
+        def __getattribute__(self, s):
+            """
+            this is called whenever any attribute of a NewCls object is accessed. This function first tries to
+            get the attribute off NewCls. If it fails then it tries to fetch the attribute from self.oInstance (an
+            instance of the decorated class). If it manages to fetch the attribute from self.oInstance, and
+            the attribute is an instance method then `time_this` is applied.
+            """
+            try:
+                x = super(NewCls, self).__getattribute__(s)
+            except AttributeError:
+                pass
+            else:
+                return x
+            x = self.oInstance.__getattribute__(s)
+            if type(x) == type(self.__init__):  # it is an instance method
+                return log_def(cls.__name__)(x)  # this is equivalent of just decorating the method with time_this
+            else:
+                return x
+
+    return NewCls
+
+
+class UserDict(dict):
+
+    def __getattr__(self, item):
+        try:
+            return super(UserDict, self).__getattribute__(item)
+        except AttributeError:
+            return self.__getitem__(item)
+
+    def __setattr__(self, item, val):
+        self.__setitem__(item, val)
+
+    def __delattr__(self, item):
+        return self.__delitem__(item)
+
+
+class CaseInsensitiveUserDict(UserDict):
+
+    def __setitem__(self, key, value):
+        super(CaseInsensitiveUserDict, self).__setitem__(key.lower(), value)
+
+    def __getitem__(self, key):
+        try:
+            return super(CaseInsensitiveUserDict, self).__getitem__(key.lower())
+        except KeyError:
+            return super(CaseInsensitiveUserDict, self).__getitem__(key)

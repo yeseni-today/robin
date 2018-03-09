@@ -7,7 +7,7 @@ from lexer import util, automate
 from lexer import tokens
 from lexer.tokens import Token, iskeyword
 import logging
-from robin.util import log_def
+from robin.util import log_def, log_cls
 
 
 def lf_lines(text):
@@ -35,6 +35,11 @@ class Context(object):
 class Scanner(ABC):
     def __init__(self, context):
         self.context = context
+
+    def __str__(self):
+        return '<%s>' % self.__class__.__name__
+
+    __repr__ = __str__
 
     @property
     def lines(self):
@@ -142,7 +147,6 @@ class Scanner(ABC):
 
 
 class IndentScanner(Scanner):
-    @log_def()
     def match(self):
         if self.position != 0:
             return False
@@ -152,12 +156,13 @@ class IndentScanner(Scanner):
             return False
         return True
 
-    @log_def()
+    @log_def(name='IndentScanner')
     def scan(self):
         indent_num = self.indent_skip()
         while self.current_char in ('#', '\n'):  # 跳过 注释行 空白行
             self.next_line()
             indent_num = self.indent_skip()
+
         return self.indent_judge(indent_num)
 
     def indent_skip(self):
@@ -192,12 +197,11 @@ class IndentScanner(Scanner):
 
 
 class EndScanner(Scanner):
-    @log_def()
     def match(self):
         return self.current_char in ('#', '\\', '\n', None)
 
     # 全文结束ENDMARKER 或 行结束NEWLINE 或 None
-    @log_def()
+    @log_def(name='EndScanner')
     def scan(self):
         char = self.current_char
         if char is None:  # 全结束
@@ -215,11 +219,10 @@ class EndScanner(Scanner):
 
 
 class NumberScanner(Scanner):
-    @log_def()
     def match(self):
         return self.current_char in '0123456789' or (self.current_char == '.' and self.look_around(1) in '0123456789')
 
-    @log_def()
+    @log_def(name='NumberScanner')
     def scan(self):
         number_dfa = automate.number_dfa
 
@@ -250,11 +253,10 @@ class NumberScanner(Scanner):
 
 
 class NameScanner(Scanner):
-    @log_def()
     def match(self):
         return self.current_char and self.current_char.isidentifier()
 
-    @log_def()
+    @log_def(name='NameScanner')
     def scan(self):
         name = self.current_char
         self.next_char()
@@ -268,7 +270,6 @@ class NameScanner(Scanner):
 
 
 class StrScanner(Scanner):
-    @log_def()
     def match(self):
         head = self.current_char
         if head in '\'\"':
@@ -281,7 +282,7 @@ class StrScanner(Scanner):
                 return True
         return False
 
-    @log_def()
+    @log_def(name='StrScanner')
     def scan(self):
         string = ''
         while self.current_char not in '\'\"':  # 前缀
@@ -373,7 +374,7 @@ class OpDelimiterScanner(Scanner):
             return True
         return False
 
-    @log_def('OpDelimiterScanner')
+    @log_def(name='OpDelimiterScanner')
     def scan(self):
         op_delimiter = ''
         for i in range(self.len):
@@ -386,6 +387,7 @@ class OpDelimiterScanner(Scanner):
             return self.make_token(tokens.DELIMITER, op_delimiter)
 
 
+# @log_cls
 class Lexer(Scanner):
     def match(self):
         pass
@@ -402,6 +404,7 @@ class Lexer(Scanner):
         self.end_scanner = EndScanner(self.context)
         self.op_delimiter_scanner = OpDelimiterScanner(self.context)
 
+    @log_def('Lexer')
     def get_token(self):
         if self.indent_scanner.match():  # 行开始
             token = self.indent_scanner.scan()
@@ -424,3 +427,30 @@ class Lexer(Scanner):
 
         # indent_scanner 和 end_scanner 可能返回None   skip_whitespace没返回        就再次调用get_token()
         return self.get_token()
+
+
+class PeekTokenLexer(Lexer):
+
+    def __init__(self, text):
+        super(PeekTokenLexer, self).__init__(text)
+
+        token = self.get_token()
+        self.tokens = [token]
+
+        while token.type != tokens.ENDMARKER:
+            token = self.get_token()
+            self.tokens.append(token)
+
+        self.tokens.append(self.get_token())
+        self.index = -1
+        print(self.tokens)
+
+    def next_token(self):
+        self.index += 1
+        return self.tokens[self.index]
+
+    def peek_token(self, peek=1):
+        index = self.index + peek
+        if index >= len(self.tokens):
+            return self.tokens[-1]
+        return self.tokens[index]

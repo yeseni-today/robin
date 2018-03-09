@@ -6,14 +6,14 @@ import click
 
 from robin import settings
 from robin.interpreter import *
-from lexer import Lexer
+from lexer import PeekTokenLexer
 from lexer import tokens
 
 __author__ = 'Aollio Hou'
 __email__ = 'aollio@outlook.com'
 
 
-class FileLexer(Lexer):
+class FileLexer(PeekTokenLexer):
     def __init__(self, file):
         text = open(file=file, encoding='utf-8').read()
         super().__init__(text)
@@ -39,7 +39,7 @@ def cli():
 
 def set_debug(ctx, param, debug):
     if debug:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.WARNING)
 
@@ -59,17 +59,27 @@ def run(file):
               expose_value=False, is_eager=True, help='Show the debug message.')
 def lexer(file):
     a_lexer = FileLexer(file)
-    token = a_lexer.get_token()
+    token = a_lexer.next_token()
+
+    while token is not None and token.type != tokens.ENDMARKER:
+        token = a_lexer.next_token()
+        print(token)
     print(token)
 
-    while token.type != tokens.ENDMARKER:
-        token = a_lexer.get_token()
-        print(token)
+
+@cli.command(help='Using parser parse Python file to AST')
+@click.argument('file')
+@click.option('-d', '--debug', is_flag=True, callback=set_debug,
+              expose_value=False, is_eager=True, help='Show the debug message.')
+def parser(file):
+    a_parser = FileParser(file)
+    root = a_parser.parse()
+    print('>' * 10, root)
 
 
 @cli.command(help='Test python source.')
 def test_pysrc():
-    dir = settings.test_dir
+    dir = settings.TESTS_PY_SOURCE
     for each_file in os.listdir(dir):
         path = os.path.join(dir, each_file)
         logging.info(f'begin tests_pysrc {path}')
@@ -77,7 +87,7 @@ def test_pysrc():
         try:
             inter.intreperter()
             # get result from global scope
-            result = inter.get_global().get(settings.result_name)
+            result = inter.get_global().get(settings.TESTS_PY_SOURCE_RESULT_NAME)
         except Exception as e:
             print(f'{path} tests_pysrc failed. raise {e}')
             raise e
