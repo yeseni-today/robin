@@ -22,13 +22,13 @@ DELIMITER = 'delimiter'
 
 # ERRORTOKEN = 'errortoken'
 
-operator = set('''
+operator = frozenset('''
     +       -       *       **      /       //      %
     <<      >>      &       |       ^       ~
     <       >       <=      >=      ==      !=
 '''.split())
 
-delimiter = set('''
+delimiter = frozenset('''
     (       )       [       ]       {       }
     ,       :       .       ;       @       =       ->
     +=      -=      *=      /=      //=     %=
