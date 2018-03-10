@@ -1,6 +1,8 @@
 single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
 file_input: (NEWLINE | stmt)* ENDMARKER
 stmt: simple_stmt | compound_stmt
+
+
     simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
         small_stmt: (expr_stmt | del_stmt | pass_stmt | flow_stmt | import_stmt | global_stmt | nonlocal_stmt | assert_stmt)
             expr_stmt: testlist_star_expr (annassign | augassign (yield_expr|testlist) | ('=' (yield_expr|testlist_star_expr))*)
@@ -34,29 +36,33 @@ stmt: simple_stmt | compound_stmt
 
     compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated | async_stmt
         if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ['else' ':' suite]
+            suite: simple_stmt | NEWLINE INDENT (simple_stmt | compound_stmt)+ DEDENT
+            >>>>>>
             test: or_test ['if' or_test 'else' test] | lambdef
-
-                >>>
                 or_test: and_test ('or' and_test)*
                     and_test: not_test ('and' not_test)*
                         not_test: 'not' not_test | comparison
                             comparison: expr (comp_op expr)*
                                 comp_op: '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not'
-                <<<
-
 
                 lambdef: 'lambda' [varargslist] ':' test
-                    varargslist: (vfpdef ['=' test] (',' vfpdef ['=' test])* [',' [ '*' [vfpdef] (',' vfpdef ['=' test])* [',' ['**' vfpdef [',']]]
-                                    | '**' vfpdef [',']]]
+
+            <<<<<<
+                    >>>>>>
+                    varargslist: (vfpdef   ['=' test]   (',' vfpdef ['=' test])*
+                                    [',' [    '*' [vfpdef]  (',' vfpdef ['=' test])*  [',' ['**' vfpdef [',']]] | '**' vfpdef [',']   ]]
                                     | '*' [vfpdef] (',' vfpdef ['=' test])* [',' ['**' vfpdef [',']]]
                                     | '**' vfpdef [',']
                                  )
                         vfpdef: NAME
+                    <<<<<<
 
-            suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT
+
         while_stmt: 'while' test ':' suite ['else' ':' suite]
         for_stmt: 'for' exprlist 'in' testlist ':' suite ['else' ':' suite]
+            testlist: test (',' test)* [',']
             exprlist: (expr|star_expr) (',' (expr|star_expr))* [',']
+                star_expr: '*' expr
 
                 >>>>>
                 expr: xor_expr ('|' xor_expr)*
@@ -68,7 +74,7 @@ stmt: simple_stmt | compound_stmt
                                         factor: ('+'|'-'|'~') factor | power
                                             power: atom_expr ['**' factor]
                                                 atom_expr: [AWAIT] atom trailer*
-                                                    <<<<<
+                <<<<<
 
                                                     atom: ('(' [yield_expr|testlist_comp] ')' |
                                                            '[' [testlist_comp] ']' |
@@ -84,19 +90,25 @@ stmt: simple_stmt | compound_stmt
                                                         subscriptlist: subscript (',' subscript)* [',']
                                                             subscript: test | [test] ':' [test] [sliceop]
                                                                 sliceop: ':' [test]
-                star_expr: '*' expr
-            testlist: test (',' test)* [',']
+
+
+
         try_stmt: ('try' ':' suite ((except_clause ':' suite) + ['else' ':' suite] ['finally' ':' suite] | 'finally' ':' suite))
             except_clause: 'except' [test ['as' NAME]]
+
         with_stmt: 'with' with_item (',' with_item)*  ':' suite
             with_item: test ['as' expr]
+
         funcdef: 'def' NAME parameters ['->' test] ':' suite
             parameters: '(' [typedargslist] ')'
+
+                >>>>>>
                 typedargslist: (tfpdef ['=' test] (',' tfpdef ['=' test])* [',' [ '*' [tfpdef] (',' tfpdef ['=' test])* [',' ['**' tfpdef [',']]] | '**' tfpdef [',']]]
                                 | '*' [tfpdef] (',' tfpdef ['=' test])* [',' ['**' tfpdef [',']]]
                                 | '**' tfpdef [',']
                                )
                     tfpdef: NAME [':' test]
+                <<<<<<
 
         classdef: 'class' NAME ['(' [arglist] ')'] ':' suite
             arglist: argument (',' argument)*  [',']

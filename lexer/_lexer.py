@@ -236,21 +236,6 @@ class NumberScanner(Scanner):
         else:
             self.error()
 
-    # def str2num(self, string):
-    #     # todo 移到语法分析中
-    #     string = string.lower()
-    #     if string[-1] == 'j':
-    #         return complex(string)
-    #     if 'x' in string:
-    #         return int(string, base=16)
-    #     if 'o' in string:
-    #         return int(string, base=8)
-    #     if 'b' in string:
-    #         return int(string, base=2)
-    #     if 'e' in string or '.' in string:
-    #         return float(string)
-    #     return int(string)
-
 
 class NameScanner(Scanner):
     def match(self):
